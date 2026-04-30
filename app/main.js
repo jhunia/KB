@@ -164,7 +164,9 @@ function initHomePageCarousels() {
 // ============================================
 function renderTestimonials() {
   const track = document.getElementById('testimonialsTrack');
-  if (!track) return;
+  const dotsContainer = document.getElementById('testimonialsDots');
+  if (!track || !dotsContainer) return;
+  
   const testimonials = db.getTestimonials();
   track.innerHTML = testimonials.map(t => `
     <div class="testimonial-card">
@@ -174,16 +176,49 @@ function renderTestimonials() {
     </div>
   `).join('');
 
-  let offset = 0;
-  const cardWidth = 420;
-  document.getElementById('testimonialNext')?.addEventListener('click', () => {
-    const max = Math.max(0, track.scrollWidth - track.parentElement.offsetWidth);
-    offset = Math.min(offset + cardWidth, max);
-    track.style.transform = `translateX(-${offset}px)`;
-  });
-  document.getElementById('testimonialPrev')?.addEventListener('click', () => {
-    offset = Math.max(offset - cardWidth, 0);
-    track.style.transform = `translateX(-${offset}px)`;
+  const cardWidth = window.innerWidth <= 768 ? 276 : 420;
+  const totalCards = testimonials.length;
+  const wrapperWidth = track.parentElement.offsetWidth;
+  const visibleCards = Math.floor(wrapperWidth / cardWidth);
+  const maxIndex = Math.max(0, totalCards - visibleCards);
+  let currentIndex = 0;
+  const AUTO_INTERVAL = 3000;
+
+  // Build dots (only for cards that can be scrolled to)
+  dotsContainer.innerHTML = '';
+  for (let i = 0; i <= maxIndex; i++) {
+    const dot = document.createElement('span');
+    dot.className = i === 0 ? 'active' : '';
+    dot.addEventListener('click', () => goTo(i));
+    dotsContainer.appendChild(dot);
+  }
+
+  function updateDots(idx) {
+    dotsContainer.querySelectorAll('span').forEach((d, i) => {
+      d.classList.toggle('active', i === idx);
+    });
+  }
+
+  function goTo(idx) {
+    currentIndex = idx;
+    track.style.transform = `translateX(-${cardWidth * idx}px)`;
+    updateDots(idx);
+  }
+
+  // Auto advance
+  let timer = setInterval(() => {
+    const next = currentIndex >= maxIndex ? 0 : currentIndex + 1;
+    goTo(next);
+  }, AUTO_INTERVAL);
+
+  // Pause on hover
+  const wrapper = track.parentElement;
+  wrapper.addEventListener('mouseenter', () => clearInterval(timer));
+  wrapper.addEventListener('mouseleave', () => {
+    timer = setInterval(() => {
+      const next = currentIndex >= maxIndex ? 0 : currentIndex + 1;
+      goTo(next);
+    }, AUTO_INTERVAL);
   });
 }
 
@@ -227,42 +262,87 @@ function renderCartDrawer() {
         <a href="/category.html" class="btn btn-primary btn-sm" style="margin-top:16px;">Start Shopping</a>
       </div>`;
     footer.style.display = 'none';
-    return;
-  }
-
-  footer.style.display = '';
-  container.innerHTML = cart.map((item, i) => {
-    const p = db.getProductById(item.productId);
-    if (!p) return '';
-    return `
-      <div class="cart-drawer-item">
-        <div class="cart-drawer-item-img"><img src="${p.images[0]}" alt="${p.name}" /></div>
-        <div class="cart-drawer-item-info">
-          <div class="cart-drawer-item-name">${p.name}</div>
-          <div class="cart-drawer-item-meta">Size: ${item.size}${item.color ? ' · ' + item.color : ''}</div>
-          <div class="cart-drawer-item-bottom">
-            <span class="cart-drawer-item-price">$${p.price * item.quantity}</span>
-            <div class="qty-control">
-              <button data-action="dec" data-index="${i}">−</button>
-              <span>${item.quantity}</span>
-              <button data-action="inc" data-index="${i}">+</button>
+  } else {
+    footer.style.display = '';
+    container.innerHTML = cart.map((item, i) => {
+      const p = db.getProductById(item.productId);
+      if (!p) return '';
+      return `
+        <div class="cart-drawer-item">
+          <div class="cart-drawer-item-img"><img src="${p.images[0]}" alt="${p.name}" /></div>
+          <div class="cart-drawer-item-info">
+            <div class="cart-drawer-item-name">${p.name}</div>
+            <div class="cart-drawer-item-meta">Size: ${item.size}${item.color ? ' · ' + item.color : ''}</div>
+            <div class="cart-drawer-item-bottom">
+              <span class="cart-drawer-item-price">$${p.price * item.quantity}</span>
+              <div class="qty-control">
+                <button data-action="dec" data-index="${i}">−</button>
+                <span>${item.quantity}</span>
+                <button data-action="inc" data-index="${i}">+</button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>`;
-  }).join('');
-  totalEl.textContent = `$${db.getCartTotal()}`;
+        </div>`;
+    }).join('');
+    totalEl.textContent = `$${db.getCartTotal()}`;
 
-  container.querySelectorAll('.qty-control button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.index);
-      const act = btn.dataset.action;
-      const c = db.getCart();
-      db.updateCartQuantity(idx, act === 'inc' ? c[idx].quantity + 1 : c[idx].quantity - 1);
-      renderCartDrawer();
-      updateCartBadge();
+    container.querySelectorAll('.qty-control button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.index);
+        const act = btn.dataset.action;
+        const c = db.getCart();
+        db.updateCartQuantity(idx, act === 'inc' ? c[idx].quantity + 1 : c[idx].quantity - 1);
+        renderCartDrawer();
+        updateCartBadge();
+      });
     });
-  });
+  }
+
+  // === FAVOURITES SECTION ===
+  const wishlist = db.getWishlist();
+  let wishlistSection = document.getElementById('drawerWishlist');
+  if (!wishlistSection) {
+    wishlistSection = document.createElement('div');
+    wishlistSection.id = 'drawerWishlist';
+    container.after(wishlistSection);
+  }
+
+  if (wishlist && wishlist.length > 0) {
+    const favItems = wishlist.map(id => db.getProductById(id)).filter(Boolean);
+    wishlistSection.innerHTML = `
+      <div class="drawer-fav-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF3333" stroke="#FF3333" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span>Saved Items</span>
+      </div>
+      <div class="drawer-fav-list">
+        ${favItems.map(p => `
+          <div class="drawer-fav-item" data-product-id="${p.id}">
+            <img src="${p.images[0]}" alt="${p.name}" class="drawer-fav-img" />
+            <div class="drawer-fav-info">
+              <div class="drawer-fav-name">${p.name}</div>
+              <div class="drawer-fav-price">$${p.price}</div>
+            </div>
+            <button class="drawer-fav-remove" data-id="${p.id}" aria-label="Remove from saved">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wishlistSection.querySelectorAll('.drawer-fav-item').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.drawer-fav-remove')) return;
+        window.location.href = `/product.html?id=${row.dataset.productId}`;
+      });
+    });
+    wishlistSection.querySelectorAll('.drawer-fav-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        db.toggleWishlist(parseInt(btn.dataset.id));
+        renderCartDrawer();
+      });
+    });
+  } else {
+    wishlistSection.innerHTML = '';
+  }
 }
 
 // ============================================

@@ -73,12 +73,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  user-select: none;
+}
+
+.filter-group-title .chevron {
+  transition: transform var(--transition-normal);
+}
+
+.filter-group-title.collapsed .chevron {
+  transform: rotate(-90deg);
 }
 
 .filter-group-content {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: all var(--transition-normal);
+}
+
+.filter-group-content.collapsed {
+  display: none;
 }
 
 .filter-check {

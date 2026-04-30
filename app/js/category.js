@@ -352,6 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initFilterEvents() {
+  // Collapsible filter groups
+  document.querySelectorAll('.filter-group-title.collapsible').forEach(title => {
+    title.addEventListener('click', () => {
+      const targetId = title.dataset.target;
+      const content = document.getElementById(targetId);
+      if (content) {
+        title.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+      }
+    });
+  });
+
   // Filter interactions
   document.querySelectorAll('input[name="category"]').forEach(cb => {
     cb.addEventListener('change', () => {

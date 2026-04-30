@@ -648,7 +648,7 @@ class KBDatabase {
   // --- Testimonials (Homepage) ---
   getTestimonials() {
     return [
-      { name: "Sarah M.", text: "The quality of these clothes is unmatched. I love the fit and feel of every single piece.", rating: 5, verified: true },
+      { name: "Sarah M.", text: "The quality of these clothes is unmatched.", rating: 5, verified: true },
       { name: "Alex K.", text: "Finding my style was never easier. The modern designs perfectly match what I was looking for.", rating: 5, verified: true },
       { name: "James L.", text: "As someone who appreciates craftsmanship, KB.ENT delivers on every front. Highly recommended.", rating: 4.8, verified: true },
       { name: "Elena R.", text: "Super fast shipping and the packaging felt so premium. Will definitely shop here again.", rating: 5, verified: true },
@@ -678,9 +678,33 @@ if (typeof document !== 'undefined') {
     // Mobile menu toggle (centralized as it is used on every page)
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const navLinks = document.getElementById('navLinks');
+    const navDropdown = document.querySelector('.nav-dropdown');
+    const navDropdownToggle = document.querySelector('.nav-dropdown-toggle');
     if (mobileMenuBtn && navLinks) {
       mobileMenuBtn.addEventListener('click', () => {
         navLinks.classList.toggle('mobile-open');
+        mobileMenuBtn.classList.toggle('active');
+      });
+
+      // Nav dropdown toggle for mobile
+      navDropdownToggle?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768) {
+          e.preventDefault();
+          navDropdown?.classList.toggle('mobile-open');
+        }
+      });
+
+      // Close menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (navLinks.classList.contains('mobile-open') && 
+            !navLinks.contains(e.target) && 
+            !mobileMenuBtn.contains(e.target)) {
+          navLinks.classList.remove('mobile-open');
+          mobileMenuBtn.classList.remove('active');
+          if (navDropdown) {
+            navDropdown.classList.remove('mobile-open');
+          }
+        }
       });
     }
   });

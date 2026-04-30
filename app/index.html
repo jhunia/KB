@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB — Find Clothes That Matches Your Style</title>
+  <meta name="description"
+    content="KB is your one-stop destination for premium fashion. Discover the latest trends in casual, formal, and streetwear clothing." />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body>
+
+  <!-- Top Banner -->
+  <div class="top-banner" id="topBanner">
+    <p>Sign up and get 20% off to your first order. <a href="/auth.html">Sign Up Now</a></p>
+    <button class="banner-close" id="bannerClose" aria-label="Close banner">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <!-- Mobile Menu Button -->
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+
+      <!-- Logo -->
+      <a href="/" class="logo">KB.ENT</a>
+
+      <!-- Nav Links -->
+      <nav class="nav-links" id="navLinks">
+        <div class="nav-dropdown">
+          <a href="/category.html" class="nav-dropdown-toggle">Shop <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></a>
+          <div class="nav-dropdown-menu">
+            <a href="/category.html?gender=Men">Men</a>
+            <a href="/coming-soon.html?section=Women">Women</a>
+            <a href="/coming-soon.html?section=Kids">Kids</a>
+            <a href="/category.html?gender=Uni-sex">Uni-sex</a>
+          </div>
+        </div>
+        <a href="/category.html?filter=sale">On Sale</a>
+        <a href="/category.html?filter=new">New Arrivals</a>
+        <a href="/category.html?filter=brands">Brands</a>
+      </nav>
+
+      <!-- Search -->
+      <div class="header-search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input type="text" placeholder="Search for products..." id="searchInput" />
+      </div>
+
+      <!-- Icons -->
+      <div class="header-icons">
+        <button id="mobileSearchBtn" style="display:none;" aria-label="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </button>
+        <button id="cartToggle" aria-label="Open cart">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="8" cy="21" r="1" />
+            <circle cx="19" cy="21" r="1" />
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+          </svg>
+          <span class="cart-badge hidden" id="cartBadge">0</span>
+        </button>
+        <a href="/auth.html" aria-label="Account">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Slide-Out Cart Drawer -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <div class="cart-drawer" id="cartDrawer">
+    <div class="cart-drawer-header">
+      <h3>Your Cart</h3>
+      <button class="cart-drawer-close" id="cartDrawerClose">✕</button>
+    </div>
+    <div class="cart-drawer-items" id="cartDrawerItems">
+      <div class="cart-drawer-empty" id="cartDrawerEmpty">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <circle cx="8" cy="21" r="1" />
+          <circle cx="19" cy="21" r="1" />
+          <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+        </svg>
+        <p>Your cart is empty</p>
+        <a href="/category.html" class="btn btn-primary btn-sm" style="margin-top:16px;">Start Shopping</a>
+      </div>
+    </div>
+    <div class="cart-drawer-footer" id="cartDrawerFooter" style="display:none;">
+      <div class="cart-drawer-total">
+        <span>Subtotal</span>
+        <span id="cartDrawerTotal">$0</span>
+      </div>
+      <a href="/cart.html" class="btn btn-primary" style="width:100%;">View Cart</a>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-content">
+          <h1 class="hero-title">FIND CLOTHES THAT MATCHES YOUR STYLE</h1>
+          <p class="hero-desc">Browse through our diverse range of meticulously crafted garments, designed to bring out
+            your individuality and cater to your sense of style.</p>
+          <a href="/category.html" class="btn btn-primary">Shop Now</a>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="number">200+</div>
+              <div class="label">International Brands</div>
+            </div>
+            <div class="hero-stat">
+              <div class="number">2,000+</div>
+              <div class="label">High-Quality Products</div>
+            </div>
+            <div class="hero-stat">
+              <div class="number">30,000+</div>
+              <div class="label">Happy Customers</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-image">
+          <img src="/assets/images/landing_page.jpg" alt="KB.ENT Fashion" />
+        </div>
+      </div>
+    </section>
+
+    <!-- BRAND LOGOS -->
+    <div class="brands-bar">
+      <div class="brands-bar-inner track-1">
+        <span class="brand-logo">VERSACE</span>
+        <span class="brand-logo" style="font-family:serif;font-style:italic;">ZARA</span>
+        <span class="brand-logo">GUCCI</span>
+        <span class="brand-logo" style="letter-spacing:4px;">PRADA</span>
+        <span class="brand-logo" style="letter-spacing:1px;">Calvin Klein</span>
+        <!-- Duplicated for seamless loop -->
+        <span class="brand-logo">VERSACE</span>
+        <span class="brand-logo" style="font-family:serif;font-style:italic;">ZARA</span>
+        <span class="brand-logo">GUCCI</span>
+        <span class="brand-logo" style="letter-spacing:4px;">PRADA</span>
+        <span class="brand-logo" style="letter-spacing:1px;">Calvin Klein</span>
+      </div>
+      <div class="brands-bar-inner track-2 mobile-only">
+        <!-- Second track for mobile reverse scrolling -->
+        <span class="brand-logo">DIOR</span>
+        <span class="brand-logo" style="letter-spacing:1px;">NIKE</span>
+        <span class="brand-logo">CHANEL</span>
+        <span class="brand-logo" style="font-family:serif;">BALENCIAGA</span>
+        <!-- Duplicated -->
+        <span class="brand-logo">DIOR</span>
+        <span class="brand-logo" style="letter-spacing:1px;">NIKE</span>
+        <span class="brand-logo">CHANEL</span>
+        <span class="brand-logo" style="font-family:serif;">BALENCIAGA</span>
+      </div>
+    </div>
+
+    <!-- NEW ARRIVALS -->
+    <section>
+      <div class="container">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:32px;">
+          <h2 class="section-title" style="margin-bottom:0;">NEW ARRIVALS</h2>
+        </div>
+        <div class="carousel-wrapper" style="overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;">
+          <div class="products-grid carousel-grid" id="newArrivalsGrid" style="display:flex; gap:16px; min-width:min-content;">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+        <div class="carousel-dots" id="newArrDots" style="display:flex; justify-content:center; gap:8px; margin-top:20px;"></div>
+        <div class="view-all-wrap">
+          <a href="/category.html?filter=new" class="btn btn-outline">View All</a>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider" />
+
+    <!-- TOP SELLING -->
+    <section>
+      <div class="container">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:32px;">
+          <h2 class="section-title" style="margin-bottom:0;">TOP SELLING</h2>
+        </div>
+        <div class="carousel-wrapper" style="overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;">
+          <div class="products-grid carousel-grid" id="topSellingGrid" style="display:flex; gap:16px; min-width:min-content;">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+        <div class="carousel-dots" id="topSellDots" style="display:flex; justify-content:center; gap:8px; margin-top:20px;"></div>
+        <div class="view-all-wrap">
+          <a href="/category.html?filter=top" class="btn btn-outline">View All</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- BROWSE BY STYLE -->
+    <section class="style-section">
+      <div class="container">
+        <div class="style-grid">
+          <h2 class="section-title" style="margin-bottom:36px;">BROWSE BY DRESS STYLE</h2>
+          <div class="style-grid-inner">
+            <a href="/category.html?style=casual" class="style-card"
+              style="background-image:url('/assets/images/causal.jpg');background-color:#F0F0F0;">
+              <span class="style-card-label">Casual</span>
+            </a>
+            <a href="/category.html?style=formal" class="style-card"
+              style="background-image:url('/assets/images/black suit.jpg');background-color:#F0F0F0;">
+              <span class="style-card-label">Formal</span>
+            </a>
+            <a href="/category.html?style=party" class="style-card"
+              style="background-image:url('/assets/images/party.jpg');background-color:#F0F0F0;">
+              <span class="style-card-label">Party</span>
+            </a>
+            <a href="/category.html?style=gym" class="style-card"
+              style="background-image:url('/assets/images/Gym.jpg');background-color:#F0F0F0;">
+              <span class="style-card-label">Gym</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+
+    <section class="testimonials-section">
+      <div class="container">
+        <div class="testimonials-header">
+          <h2 class="testimonials-title">OUR HAPPY CUSTOMERS</h2>
+          <div class="testimonials-nav">
+            <button id="testimonialPrev" aria-label="Previous">←</button>
+            <button id="testimonialNext" aria-label="Next">→</button>
+          </div>
+        </div>
+        <div class="testimonials-track-wrapper">
+          <div class="testimonials-track" id="testimonialsTrack">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand-name">KB.ENT</div>
+          <p class="footer-brand-desc">We have clothes that suits your style and which you're proud to wear. From women
+            to men.</p>
+          <div class="footer-social">
+            <a href="#" aria-label="Twitter"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+              </svg></a>
+            <a href="#" aria-label="Facebook"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
+              </svg></a>
+            <a href="#" aria-label="Instagram"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+              </svg></a>
+            <a href="#" aria-label="Github"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+              </svg></a>
+          </div>
+        </div>
+        <div>
+          <h4 class="footer-col-title">Company</h4>
+          <ul class="footer-links">
+            <li><a href="#">About</a></li>
+            <li><a href="/admin/login.html">Admin Portal</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-col-title">Help</h4>
+          <ul class="footer-links">
+            <li><a href="#">Customer Support</a></li>
+            <li><a href="#">Delivery Details</a></li>
+            <li><a href="#">Terms & Conditions</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="footer-col-title">FAQ</h4>
+          <ul class="footer-links">
+            <li><a href="#">Account</a></li>
+            <li><a href="#">Manage Deliveries</a></li>
+            <li><a href="#">Orders</a></li>
+            <li><a href="#">Payments</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copyright">KB.ENT &copy; 2000-2026, All Rights Reserved</p>
+        <div class="payment-icons">
+          <div class="payment-icon">VISA</div>
+          <div class="payment-icon">MC</div>
+          <div class="payment-icon">MoMo</div>
+          <div class="payment-icon">Pay</div>
+          <div class="payment-icon">GPay</div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>

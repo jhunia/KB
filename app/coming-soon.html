@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB.ENT — Coming Soon</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/coming-soon.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo" style="margin: 0 auto;">KB.ENT</a>
+    </div>
+  </header>
+
+  <main class="coming-soon-main">
+    <div class="container text-center">
+      <div class="coming-soon-content">
+        <div class="cs-badge">Coming Soon</div>
+        <h1 class="cs-title">The <span id="csSectionName"></span> Collection</h1>
+        <p class="cs-desc">We are working hard to bring you the best styles. Our new collection is dropping soon. Get ready to elevate your wardrobe.</p>
+        
+        <div class="cs-countdown">
+          <div class="cs-time-box"><span class="num">14</span><span class="label">Days</span></div>
+          <div class="cs-time-box"><span class="num">08</span><span class="label">Hours</span></div>
+          <div class="cs-time-box"><span class="num">45</span><span class="label">Mins</span></div>
+        </div>
+
+        <div class="cs-actions">
+          <a href="/category.html?gender=Men" class="btn btn-primary">Shop Men's</a>
+          <a href="/" class="btn btn-outline">Back Home</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get('section') || 'New';
+    document.getElementById('csSectionName').textContent = section;
+    document.title = `KB.ENT — ${section} Collection Coming Soon`;
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB.ENT — My Profile</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/profile.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu"><span></span><span></span><span></span></button>
+      <a href="/" class="logo">KB.ENT</a>
+      <nav class="nav-links" id="navLinks">
+        <div class="nav-dropdown">
+          <a href="/category.html" class="nav-dropdown-toggle">Shop <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></a>
+          <div class="nav-dropdown-menu">
+            <a href="/category.html?gender=Men">Men</a>
+            <a href="/coming-soon.html?section=Women">Women</a>
+            <a href="/coming-soon.html?section=Kids">Kids</a>
+            <a href="/category.html?gender=Uni-sex">Uni-sex</a>
+          </div>
+        </div>
+        <a href="/category.html?filter=sale">On Sale</a>
+        <a href="/category.html?filter=new">New Arrivals</a>
+        <a href="/category.html?filter=brands">Brands</a>
+      </nav>
+      <div class="header-search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Search for products..." id="searchInput" />
+      </div>
+      <div class="header-icons">
+        <button id="cartToggle" aria-label="Open cart">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          <span class="cart-badge hidden" id="cartBadge">0</span>
+        </button>
+        <a href="/profile.html" aria-label="Account" class="active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Cart Drawer -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <div class="cart-drawer" id="cartDrawer">
+    <div class="cart-drawer-header"><h3>Your Cart</h3><button class="cart-drawer-close" id="cartDrawerClose">✕</button></div>
+    <div class="cart-drawer-items" id="cartDrawerItems"><div class="cart-drawer-empty">Your cart is empty</div></div>
+    <div class="cart-drawer-footer" id="cartDrawerFooter" style="display:none;">
+      <div class="cart-drawer-total"><span>Subtotal</span><span id="cartDrawerTotal">$0</span></div>
+      <a href="/cart.html" class="btn btn-primary" style="width:100%;">View Cart</a>
+    </div>
+  </div>
+
+  <main class="profile-main">
+    <div class="container">
+      <div class="profile-header">
+        <div class="profile-avatar" id="profileInitials"></div>
+        <div class="profile-info">
+          <h1 id="profileName">Loading...</h1>
+          <p id="profileEmail">loading@...com</p>
+        </div>
+        <button class="btn btn-outline" id="logoutBtn" style="margin-left: auto;">Log Out</button>
+      </div>
+
+      <div class="profile-content">
+        <h2 class="section-title" style="text-align:left; font-size: 28px;">Order History</h2>
+        
+        <div class="orders-list" id="ordersList">
+          <!-- Orders dynamically rendered here -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <h2>KB.ENT</h2>
+        <p>We have clothes that suits your style and which you're proud to wear. From women to men.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/profile.js"></script>
+</body>
+</html>

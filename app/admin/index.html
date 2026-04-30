@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KB Admin — Dashboard</title>
+  <link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/index.html" class="brand-logo">KB.ENT <span>Admin</span></a>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-target="view-dashboard">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        Overview
+      </a>
+      <a class="nav-item" data-target="view-orders">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+        Orders
+      </a>
+      <a class="nav-item" data-target="view-products">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+        Products
+      </a>
+      <a class="nav-item" data-target="view-customers">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        Customers
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" id="logoutBtn">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <main class="main-content">
+    
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard Overview</div>
+      <div class="topbar-right">
+        <div class="admin-profile">
+          <span style="font-size:14px; font-weight:500;" id="adminNameDisplay">Admin</span>
+          <div class="admin-avatar">A</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- VIEWS -->
+    <!-- 1. Dashboard Overview -->
+    <div class="page-container active" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-title">Total Revenue</div>
+          <div class="stat-card-value" id="kpiRevenue">$0.00</div>
+          <div class="stat-card-trend trend-up">Lifetime Sales</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Total Orders</div>
+          <div class="stat-card-value" id="kpiOrders">0</div>
+          <div class="stat-card-trend">All Time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Active Orders</div>
+          <div class="stat-card-value" id="kpiActive">0</div>
+          <div class="stat-card-trend trend-up">Processing / Shipped</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Registered Customers</div>
+          <div class="stat-card-value" id="kpiCustomers">0</div>
+          <div class="stat-card-trend">All Accounts</div>
+        </div>
+      </div>
+
+      <!-- Sales Chart -->
+      <div class="table-wrapper" style="margin-bottom:24px;">
+        <div class="table-header">
+          <h2>Sales Breakdown</h2>
+        </div>
+        <div style="padding:24px;">
+          <div id="salesChart" style="display:flex; align-items:flex-end; gap:12px; height:180px;"></div>
+          <div id="salesChartLabels" style="display:flex; gap:12px; margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h2>Recent Orders</h2>
+          <button class="action-btn" onclick="document.querySelector('[data-target=\\'view-orders\\']').click()">View All</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="recentOrdersTbody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- 2. Orders View -->
+    <div class="page-container" id="view-orders">
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h2>All Orders</h2>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Date</th>
+              <th>Customer Info</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="allOrdersTbody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- 3. Customers View -->
+    <div class="page-container" id="view-customers">
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h2>All Customers</h2>
+          <span id="customerCount" style="font-size:14px;color:var(--text-sub);"></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Orders</th>
+              <th>Total Spend</th>
+            </tr>
+          </thead>
+          <tbody id="customersTbody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+    <!-- 4. Products View -->
+    <div class="page-container" id="view-products">
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h2>Product Inventory</h2>
+          <button class="action-btn primary" id="openAddProductModalBtn">+ Add Product</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="productsTbody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Product Modal (Add/Edit) -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-content" style="max-width:700px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 id="productModalTitle">Add New Product</h3>
+        <button class="close-modal" id="closeProductModal">✕</button>
+      </div>
+      <form id="productForm">
+        <input type="hidden" id="editProductId" value="">
+        
+        <div class="form-row">
+          <div class="form-group" style="flex:2;">
+            <label>Product Name</label>
+            <input type="text" id="prodName" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Gender</label>
+            <select id="prodGender" required>
+              <option value="Men">Men</option>
+              <option value="Women">Women</option>
+              <option value="Kids">Kids</option>
+              <option value="Uni-sex">Uni-sex</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label>Price ($)</label>
+            <input type="number" id="prodPrice" min="0" step="0.01" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Original Price ($) - Optional</label>
+            <input type="number" id="prodOriginalPrice" min="0" step="0.01">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Discount (%) - Optional</label>
+            <input type="number" id="prodDiscount" min="0" max="100">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label>Category</label>
+            <select id="prodCategory" required>
+              <option value="tshirts">T-Shirts</option>
+              <option value="shirts">Shirts</option>
+              <option value="polos">Polo Shirts</option>
+              <option value="tanktops">Tank Tops</option>
+              <option value="hoodies">Hoodies & Sweatshirts</option>
+              <option value="jackets">Jackets & Coats</option>
+              <option value="blazers">Blazers</option>
+              <option value="suits">Suits</option>
+              <option value="vests">Vests</option>
+              <option value="jeans">Jeans & Denim</option>
+              <option value="trousers">Trousers</option>
+              <option value="shorts">Shorts</option>
+              <option value="joggers">Joggers & Sweatpants</option>
+              <option value="jerseys">Jerseys</option>
+              <option value="underwear">Underwear & Boxers</option>
+              <option value="swimwear">Swimwear</option>
+              <option value="shoes">Shoes & Sneakers</option>
+              <option value="boots">Boots</option>
+              <option value="sandals">Sandals & Slides</option>
+              <option value="caps">Caps & Hats</option>
+              <option value="belts">Belts</option>
+              <option value="sunglasses">Sunglasses</option>
+              <option value="watches">Watches</option>
+              <option value="bags">Bags & Backpacks</option>
+              <option value="jewelry">Jewelry</option>
+              <option value="ties">Ties & Bowties</option>
+              <option value="socks">Socks</option>
+              <option value="scarves">Scarves & Wraps</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Brand</label>
+            <select id="prodBrand" required>
+              <option value="Nike">Nike</option>
+              <option value="Adidas">Adidas</option>
+              <option value="Puma">Puma</option>
+              <option value="Gucci">Gucci</option>
+              <option value="Versace">Versace</option>
+              <option value="Zara">Zara</option>
+              <option value="H&M">H&M</option>
+              <option value="Prada">Prada</option>
+              <option value="Calvin Klein">Calvin Klein</option>
+              <option value="Ralph Lauren">Ralph Lauren</option>
+              <option value="Lacoste">Lacoste</option>
+              <option value="Tommy Hilfiger">Tommy Hilfiger</option>
+              <option value="Louis Vuitton">Louis Vuitton</option>
+              <option value="Balenciaga">Balenciaga</option>
+              <option value="Off-White">Off-White</option>
+              <option value="Supreme">Supreme</option>
+              <option value="The North Face">The North Face</option>
+              <option value="Under Armour">Under Armour</option>
+              <option value="New Balance">New Balance</option>
+              <option value="Converse">Converse</option>
+              <option value="Reebok">Reebok</option>
+              <option value="Fila">Fila</option>
+              <option value="Champion">Champion</option>
+              <option value="Hugo Boss">Hugo Boss</option>
+              <option value="Burberry">Burberry</option>
+              <option value="Dior">Dior</option>
+              <option value="Chanel">Chanel</option>
+              <option value="Clarks">Clarks</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" id="prodBrandOther" placeholder="Type custom brand..." style="display:none; margin-top:8px;">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Dress Style</label>
+            <select id="prodStyle" required>
+              <option value="casual">Casual</option>
+              <option value="formal">Formal</option>
+              <option value="party">Party</option>
+              <option value="gym">Gym</option>
+              <option value="streetwear">Streetwear</option>
+              <option value="business_casual">Business Casual</option>
+              <option value="smart_casual">Smart Casual</option>
+              <option value="vintage">Vintage</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Colors (Select at least one. Check box indicates 'In Stock')</label>
+          <div class="color-picker-grid" id="prodColorsContainer">
+            <!-- Will be populated by JS -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Sizes (Select at least one)</label>
+          <div class="size-picker-grid" id="prodSizesContainer">
+            <!-- Apparels -->
+            <label class="size-chip"><input type="checkbox" value="XS" name="prodSize"> XS</label>
+            <label class="size-chip"><input type="checkbox" value="Small" name="prodSize"> S</label>
+            <label class="size-chip"><input type="checkbox" value="Medium" name="prodSize"> M</label>
+            <label class="size-chip"><input type="checkbox" value="Large" name="prodSize"> L</label>
+            <label class="size-chip"><input type="checkbox" value="X-Large" name="prodSize"> XL</label>
+            <label class="size-chip"><input type="checkbox" value="XXL" name="prodSize"> XXL</label>
+            <label class="size-chip"><input type="checkbox" value="3XL" name="prodSize"> 3XL</label>
+            <!-- Suits -->
+            <label class="size-chip"><input type="checkbox" value="38R" name="prodSize"> 38R</label>
+            <label class="size-chip"><input type="checkbox" value="40R" name="prodSize"> 40R</label>
+            <label class="size-chip"><input type="checkbox" value="42R" name="prodSize"> 42R</label>
+            <label class="size-chip"><input type="checkbox" value="44R" name="prodSize"> 44R</label>
+            <!-- Footwear/Waist -->
+            <label class="size-chip"><input type="checkbox" value="30" name="prodSize"> 30</label>
+            <label class="size-chip"><input type="checkbox" value="32" name="prodSize"> 32</label>
+            <label class="size-chip"><input type="checkbox" value="34" name="prodSize"> 34</label>
+            <label class="size-chip"><input type="checkbox" value="36" name="prodSize"> 36</label>
+            <label class="size-chip"><input type="checkbox" value="38" name="prodSize"> 38</label>
+            <label class="size-chip"><input type="checkbox" value="40" name="prodSize"> 40</label>
+            <label class="size-chip"><input type="checkbox" value="41" name="prodSize"> 41</label>
+            <label class="size-chip"><input type="checkbox" value="42" name="prodSize"> 42</label>
+            <label class="size-chip"><input type="checkbox" value="43" name="prodSize"> 43</label>
+            <label class="size-chip"><input type="checkbox" value="44" name="prodSize"> 44</label>
+            <label class="size-chip"><input type="checkbox" value="45" name="prodSize"> 45</label>
+            <label class="size-chip"><input type="checkbox" value="One Size" name="prodSize"> One Size</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Images</label>
+          <div class="image-upload-zone" id="imageUploadZone">
+            <p>Drag & drop images here or <span>browse</span></p>
+            <input type="file" id="prodImageInput" accept="image/*" multiple style="display:none;">
+          </div>
+          <div class="image-preview-container" id="imagePreviewContainer">
+            <!-- Image previews will appear here -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="prodDesc" rows="3" required></textarea>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:12px;">
+          <button type="button" class="action-btn" id="cancelProductBtn">Cancel</button>
+          <button type="submit" class="action-btn primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/js/dashboard.js"></script>
+</body>
+</html>

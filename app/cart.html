@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB — Your Cart</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/cart.css" />
+</head>
+<body>
+  <!-- Top Banner -->
+  <div class="top-banner" id="topBanner">
+    <p>Sign up and get 20% off to your first order. <a href="/auth.html">Sign Up Now</a></p>
+    <button class="banner-close" id="bannerClose" aria-label="Close banner">✕</button>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu"><span></span><span></span><span></span></button>
+      <a href="/" class="logo">KB.ENT</a>
+      <nav class="nav-links" id="navLinks">
+        <a href="/category.html">Shop <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></a>
+        <a href="/category.html?filter=sale">On Sale</a>
+        <a href="/category.html?filter=new">New Arrivals</a>
+        <a href="/category.html?filter=brands">Brands</a>
+      </nav>
+      <div class="header-search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Search for products..." />
+      </div>
+      <div class="header-icons">
+        <a href="/cart.html" aria-label="Open cart">
+          <div style="position:relative;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+            <span class="cart-badge hidden" id="cartPageBadge">0</span>
+          </div>
+        </a>
+        <a href="/auth.html" aria-label="Account"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="/">Home</a> <span>›</span> <span style="color:var(--black);font-weight:500;">Cart</span>
+      </div>
+
+      <h1 class="cart-title">YOUR CART</h1>
+
+      <div class="cart-layout" id="cartLayout">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- STILL INTERESTED SECTION -->
+  <section id="stillInterestedSection" style="display:none; padding-top: 0; padding-bottom: 64px;">
+    <div class="container">
+      <hr class="section-divider" style="margin-bottom: 48px;" />
+      <h2 class="section-title" style="text-align: left; font-size: 28px; margin-bottom: 32px;">STILL INTERESTED?</h2>
+      <div class="products-grid" id="stillInterestedGrid">
+        <!-- Rendered by cart.js -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" style="margin-top: 64px;">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand-name">KB.ENT</div>
+          <p class="footer-brand-desc">We have clothes that suits your style and which you're proud to wear. From women to men.</p>
+        </div>
+        <div><h4 class="footer-col-title">Company</h4><ul class="footer-links"><li><a href="#">About</a></li><li><a href="#">Features</a></li></ul></div>
+        <div><h4 class="footer-col-title">Help</h4><ul class="footer-links"><li><a href="#">Customer Support</a></li><li><a href="#">Delivery Details</a></li></ul></div>
+        <div><h4 class="footer-col-title">FAQ</h4><ul class="footer-links"><li><a href="#">Account</a></li><li><a href="#">Manage Deliveries</a></li></ul></div>
+        <div><h4 class="footer-col-title">Resources</h4><ul class="footer-links"><li><a href="#">Free eBooks</a></li><li><a href="#">Development Tutorial</a></li></ul></div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copyright">KB.ENT &copy; 2000-2026, All Rights Reserved</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/cart.js"></script>
+</body>
+</html>

@@ -1,7 +1,9 @@
 import { db } from './db.js';
+import { loadPaystackScript, initPaystackPayment } from './paystack.js';
 
 let discountPercent = 0;
 const DELIVERY_FEE = 15;
+let currentOrder = null; // Store order during payment process
 
 // ============================================
 // Self-contained card renderer (cart.js context)
@@ -150,32 +152,36 @@ function renderCart() {
       </button>
     </div>
 
-    <!-- MoMo Modal -->
+    <!-- Paystack Modal -->
     <div class="checkout-modal-overlay" id="checkoutModal">
       <div class="checkout-modal">
         <div class="modal-header">
           <h3>Checkout</h3>
           <button id="closeModal" style="font-size:24px;">✕</button>
         </div>
-        <div class="momo-badge">Pay with MoMo</div>
+        <div class="paystack-badge" style="background:#00C853;color:#fff;padding:8px 16px;border-radius:4px;font-size:14px;font-weight:600;text-align:center;margin-bottom:16px;">
+          🔒 Secure Payment with Paystack
+        </div>
         <form id="checkoutForm">
           <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="custName" required placeholder="Enter your full name">
+            <label>Full Name</label>
+            <input type="text" id="custName" required value="Test User" placeholder="Enter your full name">
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" id="custEmail" required placeholder="Enter your email">
+            <input type="email" id="custEmail" required value="test@kb.ent" placeholder="Enter your email">
           </div>
           <div class="form-group">
-            <label>Mobile Money Number (MoMo)</label>
-            <input type="tel" id="custPhone" required placeholder="e.g. 024xxxxxxx">
+            <label>Phone Number</label>
+            <input type="tel" id="custPhone" required value="0241234567" placeholder="e.g. 024xxxxxxx">
           </div>
           <div class="form-group">
             <label>Delivery Address</label>
-            <input type="text" id="custAddress" required placeholder="Enter your delivery address">
+            <input type="text" id="custAddress" required value="123 Test Street, Accra" placeholder="Enter your delivery address">
           </div>
-          <button type="submit" class="checkout-btn" style="margin-top:24px;">Pay $${total}</button>
+          <button type="submit" class="checkout-btn" style="margin-top:24px;">
+            Pay $${total} with Paystack
+          </button>
         </form>
       </div>
     </div>
@@ -185,6 +191,10 @@ function renderCart() {
 }
 
 function bindCartEvents() {
+  // Re-query layout here so all nested handlers (handlePaymentSuccess,
+  // handlePaymentCancel) have a valid DOM reference regardless of scope.
+  const layout = document.getElementById('cartLayout');
+
   // Quantities
   document.querySelectorAll('.qty-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -246,11 +256,11 @@ function bindCartEvents() {
     modal.classList.remove('open');
   });
 
-  // Form Submit
-  document.getElementById('checkoutForm')?.addEventListener('submit', (e) => {
+  // Form Submit - DB-first approach: Create order, then Paystack payment
+  document.getElementById('checkoutForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Create Mock Order
+    // Create Order with pending_payment status
     const subtotal = db.getCartTotal();
     const discountAmount = Math.round(subtotal * (discountPercent / 100));
     const total = subtotal - discountAmount + DELIVERY_FEE;
@@ -263,27 +273,66 @@ function bindCartEvents() {
         address: document.getElementById('custAddress').value,
       },
       items: db.getCart(),
+      subtotal: subtotal,
+      discount: discountAmount,
+      deliveryFee: DELIVERY_FEE,
       total: total,
-      paymentMethod: 'momo'
+      paymentMethod: 'paystack'
     };
 
-    db.addOrder(order);
+    // Save order to DB with pending_payment status BEFORE opening Paystack.
+    currentOrder = db.addOrder(order, 'pending_payment');
+
+    // Close the checkout form modal
+    modal.classList.remove('open');
+
+    // Load Paystack inline.js if it isn't already on the page (with retry)
+    try {
+      await loadPaystackScript();
+    } catch (err) {
+      console.error('[Cart] Paystack script load failed:', err.message);
+      alert('Failed to load payment gateway. Please check your connection and try again.');
+      return;
+    }
+
+    // Open the Paystack popup
+    initPaystackPayment(
+      currentOrder,
+      (response) => {
+        // Only called after a confirmed successful charge or fallback simulation
+        handlePaymentSuccess(currentOrder, response);
+      },
+      () => {
+        // User closed the popup without paying — cart is still intact
+        handlePaymentCancel(currentOrder);
+      }
+    );
+  });
+
+  // Handle successful payment
+  function handlePaymentSuccess(order, response) {
+    // Update order status to paid
+    db.updateOrderStatus(order.id, 'paid');
+
+    // NOW it is safe to clear the cart — payment is confirmed
     db.clearCart();
+    updateBadge();
     
     const guestEmail = order.customer.email;
     const guestName = order.customer.name;
     const isGuest = !db.getCurrentUser();
-
-    // Post-purchase confirmation screen
+    
+    // Show success confirmation
     layout.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 60px 0 40px;">
         <!-- Success Icon -->
         <div style="width:72px;height:72px;border-radius:50%;background:#ECFDF5;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
         </div>
-        <h2 style="font-family:var(--font-display);font-size:32px;margin-bottom:12px;">Order Confirmed! 🎉</h2>
-        <p style="color:var(--gray-600);font-size:16px;max-width:480px;margin:0 auto 8px;">Thank you, <strong>${guestName}</strong>. We've received your order and will reach out on <strong>${guestEmail}</strong> shortly.</p>
-        <p style="color:var(--gray-500);font-size:14px;margin-bottom:40px;">Order ID: <strong style="color:var(--black);">${order.id}</strong></p>
+        <h2 style="font-family:var(--font-display);font-size:32px;margin-bottom:12px;">Payment Successful! 🎉</h2>
+        <p style="color:var(--gray-600);font-size:16px;max-width:480px;margin:0 auto 8px;">Thank you, <strong>${guestName}</strong>. Your payment has been received and your order is confirmed.</p>
+        <p style="color:var(--gray-500);font-size:14px;margin-bottom:20px;">Order ID: <strong style="color:var(--black);">${order.id}</strong></p>
+        <p style="color:var(--gray-500);font-size:14px;margin-bottom:40px;">Transaction Ref: <strong>${response.reference}</strong></p>
 
         ${isGuest ? `
         <!-- Post-purchase sign-up prompt for guests -->
@@ -311,7 +360,6 @@ function bindCartEvents() {
         <a href="/" class="btn btn-primary" style="display:inline-block;">Continue Shopping</a>
       </div>
     `;
-    updateBadge();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Bind post-purchase sign-up form
@@ -342,7 +390,25 @@ function bindCartEvents() {
         document.getElementById('postPurchaseSignup').style.display = 'none';
       });
     }
-  });
+  }
+
+  // Handle payment cancellation
+  function handlePaymentCancel(order) {
+    // Order remains in pending_payment status
+    // User can retry or it will be handled separately
+    layout.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 60px 0 40px;">
+        <div style="width:72px;height:72px;border-radius:50%;background:#FEF3C7;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2.5"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <h2 style="font-family:var(--font-display);font-size:32px;margin-bottom:12px;">Payment Incomplete</h2>
+        <p style="color:var(--gray-600);font-size:16px;max-width:480px;margin:0 auto 8px;">Your order <strong>${order.id}</strong> has been saved but payment was not completed.</p>
+        <p style="color:var(--gray-500);font-size:14px;margin-bottom:40px;">You can retry payment from your order history or contact support.</p>
+        <a href="/" class="btn btn-primary" style="display:inline-block;">Continue Shopping</a>
+      </div>
+    `;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function updateBadge() {
@@ -424,17 +490,14 @@ function renderStillInterested() {
       if (product && product.inStock !== false) {
         // Find first available size
         const size = product.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Medium';
-        // Find first available color
+        // Find first available color.
+        // product.colors is an array of plain hex strings e.g. ["#000000", "#FFFFFF"]
         let color = null;
         if (product.colors && product.colors.length > 0) {
-           const availableColors = product.colors.filter(c => {
-             return !product.colorStock || product.colorStock[c.hex] !== false;
-           });
-           if(availableColors.length > 0) {
-             color = availableColors[0].hex;
-           } else {
-             color = product.colors[0].hex;
-           }
+          const availableColors = product.colors.filter(c =>
+            !product.colorStock || product.colorStock[c] !== false
+          );
+          color = availableColors.length > 0 ? availableColors[0] : product.colors[0];
         }
         
         db.addToCart(id, size, color, 1);

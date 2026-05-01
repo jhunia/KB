@@ -206,7 +206,7 @@
   background: var(--gray-800);
 }
 
-/* Checkout MoMo Modal */
+/* Checkout Paystack Modal */
 .checkout-modal-overlay {
   position: fixed;
   inset: 0;
@@ -271,9 +271,21 @@
   font-family: inherit;
 }
 
+.paystack-badge {
+  background: #00C853;
+  color: #fff;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
 .momo-badge {
-  background: #FFCC00;
-  color: #000;
+  /* Kept for backwards compatibility */
+  background: #00C853;
+  color: #fff;
   font-weight: 700;
   padding: 8px 16px;
   border-radius: var(--radius-sm);

@@ -536,14 +536,30 @@ class KBDatabase {
   }
 
   // --- Orders ---
-  addOrder(orderData) {
+  addOrder(orderData, status = 'pending_payment') {
     let orders = JSON.parse(localStorage.getItem('kb_orders')) || [];
     orderData.id = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
     orderData.date = new Date().toISOString();
-    orderData.status = 'Processing';
+    orderData.status = status;
     orders.push(orderData);
     localStorage.setItem('kb_orders', JSON.stringify(orders));
     return orderData;
+  }
+
+  updateOrderStatus(orderId, newStatus) {
+    let orders = this.getOrders();
+    const idx = orders.findIndex(o => o.id === orderId);
+    if (idx > -1) {
+      orders[idx].status = newStatus;
+      localStorage.setItem('kb_orders', JSON.stringify(orders));
+      return true;
+    }
+    return false;
+  }
+
+  getOrderById(orderId) {
+    const orders = this.getOrders();
+    return orders.find(o => o.id === orderId);
   }
 
   getOrders() {
@@ -569,17 +585,6 @@ class KBDatabase {
           totalSpend: userOrders.reduce((s, o) => s + o.total, 0)
         };
       });
-  }
-
-  updateOrderStatus(orderId, newStatus) {
-    let orders = this.getOrders();
-    const idx = orders.findIndex(o => o.id === orderId);
-    if (idx > -1) {
-      orders[idx].status = newStatus;
-      localStorage.setItem('kb_orders', JSON.stringify(orders));
-      return true;
-    }
-    return false;
   }
 
   updateProductStock(productId, inStockStatus) {

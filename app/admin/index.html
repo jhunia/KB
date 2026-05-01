@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="/admin/css/admin.css" />
 </head>
 <body>
+  <!-- Mobile Sidebar Overlay -->
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
   <!-- Sidebar Navigation -->
   <aside class="sidebar">
@@ -46,7 +48,12 @@
     
     <!-- Top Bar -->
     <header class="topbar">
-      <div class="topbar-title" id="topbarTitle">Dashboard Overview</div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <button id="mobileMenuToggle" class="mobile-menu-btn">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        <div class="topbar-title" id="topbarTitle">Dashboard Overview</div>
+      </div>
       <div class="topbar-right">
         <div class="admin-profile">
           <span style="font-size:14px; font-weight:500;" id="adminNameDisplay">Admin</span>
@@ -95,12 +102,11 @@
       <div class="table-wrapper">
         <div class="table-header">
           <h2>Recent Orders</h2>
-          <button class="action-btn" onclick="document.querySelector('[data-target=\\'view-orders\\']').click()">View All</button>
+          <button class="action-btn" onclick="document.querySelector('[data-target=&quot;view-orders&quot;]').click()">View All</button>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Order ID</th>
               <th>Customer</th>
               <th>Date</th>
               <th>Total</th>
@@ -124,12 +130,9 @@
         <table>
           <thead>
             <tr>
-              <th>Order ID</th>
-              <th>Date</th>
               <th>Customer Info</th>
               <th>Amount</th>
               <th>Status</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody id="allOrdersTbody">
@@ -151,10 +154,7 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Email</th>
               <th>Phone</th>
-              <th>Orders</th>
-              <th>Total Spend</th>
             </tr>
           </thead>
           <tbody id="customersTbody">
@@ -176,10 +176,7 @@
           <thead>
             <tr>
               <th>Product</th>
-              <th>Category</th>
               <th>Price</th>
-              <th>Stock Status</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody id="productsTbody">
@@ -375,6 +372,45 @@
           <button type="submit" class="action-btn primary">Save Product</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Order Detail Modal -->
+  <div class="modal-overlay" id="orderDetailModal">
+    <div class="modal-content" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>Order Details</h3>
+        <button class="close-modal" onclick="closeOrderDetailModal()">✕</button>
+      </div>
+      <div id="orderDetailContent" style="padding:24px;">
+        <!-- Content injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Detail Modal -->
+  <div class="modal-overlay" id="productDetailModal">
+    <div class="modal-content" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>Product Details</h3>
+        <button class="close-modal" onclick="closeProductDetailModal()">✕</button>
+      </div>
+      <div id="productDetailContent" style="padding:24px;">
+        <!-- Content injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Detail Modal -->
+  <div class="modal-overlay" id="customerDetailModal">
+    <div class="modal-content" style="max-width:500px;">
+      <div class="modal-header">
+        <h3>Customer Details</h3>
+        <button class="close-modal" onclick="closeCustomerDetailModal()">✕</button>
+      </div>
+      <div id="customerDetailContent" style="padding:24px;">
+        <!-- Content injected by JS -->
+      </div>
     </div>
   </div>
 

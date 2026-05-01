@@ -24,10 +24,37 @@ function initDashboard() {
   }
   document.getElementById('adminNameDisplay').textContent = user.name;
   
-  // 2. Setup Routing
+  // 2. Setup Routing & Mobile Menu
   const navItems = document.querySelectorAll('.nav-item');
   const pages = document.querySelectorAll('.page-container');
   const title = document.getElementById('topbarTitle');
+  const sidebar = document.querySelector('.sidebar');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+
+  function toggleSidebar() {
+    sidebar.classList.toggle('open');
+    sidebarOverlay.classList.toggle('open');
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('open');
+  }
+
+  if (mobileMenuToggle) {
+    mobileMenuToggle.addEventListener('click', toggleSidebar);
+  }
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeSidebar);
+  }
+
+  // Close sidebar on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+      closeSidebar();
+    }
+  });
 
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
@@ -40,6 +67,10 @@ function initDashboard() {
       pages.forEach(p => p.classList.remove('active'));
       document.getElementById(targetId).classList.add('active');
       
+      if (window.innerWidth <= 768) {
+        closeSidebar();
+      }
+
       if (targetId === 'view-dashboard') renderKPIs();
       if (targetId === 'view-orders') renderOrdersTable();
       if (targetId === 'view-products') renderProductsTable();
@@ -71,9 +102,12 @@ function formatDate(isoString) {
 }
 
 function getStatusBadgeClass(status) {
+  if (status === 'pending_payment') return 'status-pending';
+  if (status === 'paid') return 'status-paid';
   if (status === 'Processing') return 'status-processing';
   if (status === 'Shipped') return 'status-shipped';
   if (status === 'Delivered') return 'status-delivered';
+  if (status === 'payment_failed') return 'status-failed';
   return '';
 }
 
@@ -106,6 +140,23 @@ function setupProductModal() {
       brandOtherInput.removeAttribute('required');
     }
   });
+
+  // Auto-calculate discounted price when original price and discount are entered
+  const prodOriginalPrice = document.getElementById('prodOriginalPrice');
+  const prodDiscount = document.getElementById('prodDiscount');
+  const prodPrice = document.getElementById('prodPrice');
+
+  function calculateDiscountedPrice() {
+    const original = parseFloat(prodOriginalPrice.value);
+    const discount = parseFloat(prodDiscount.value);
+    if (original && discount && discount > 0 && discount <= 100) {
+      const discounted = original * (1 - discount / 100);
+      prodPrice.value = Math.round(discounted * 100) / 100; // Round to 2 decimal places
+    }
+  }
+
+  prodOriginalPrice.addEventListener('input', calculateDiscountedPrice);
+  prodDiscount.addEventListener('input', calculateDiscountedPrice);
 
   // Handle Image Uploads via FileReader (Base64)
   const imageUploadZone = document.getElementById('imageUploadZone');
@@ -278,8 +329,10 @@ function renderKPIs() {
   let active = 0;
 
   orders.forEach(o => {
-    if (o.status === 'Delivered') rev += o.total;
-    if (o.status === 'Processing' || o.status === 'Shipped') active++;
+    // Count revenue from delivered and paid orders
+    if (o.status === 'Delivered' || o.status === 'paid') rev += o.total;
+    // Active orders: paid, processing, shipped, or pending payment
+    if (['paid', 'Processing', 'Shipped', 'pending_payment'].includes(o.status)) active++;
   });
 
   document.getElementById('kpiRevenue').textContent = `$${rev.toFixed(2)}`;
@@ -302,7 +355,7 @@ function renderKPIs() {
       d.setDate(d.getDate() - (6 - i));
       const dayStr = d.toDateString();
       return orders
-        .filter(o => o.status === 'Delivered' && new Date(o.date).toDateString() === dayStr)
+        .filter(o => (o.status === 'Delivered' || o.status === 'paid') && new Date(o.date).toDateString() === dayStr)
         .reduce((sum, o) => sum + o.total, 0);
     });
 
@@ -324,19 +377,23 @@ function renderKPIs() {
   const tbody = document.getElementById('recentOrdersTbody');
   
   if (recent.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-sub);">No orders yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-sub);">No orders yet</td></tr>`;
     return;
   }
 
   tbody.innerHTML = recent.map(o => `
-    <tr>
-      <td style="font-weight:600;">${o.id}</td>
+    <tr class="clickable-row" data-type="order" data-id="${o.id}">
       <td>${o.customer.name}</td>
       <td>${formatDate(o.date)}</td>
       <td style="font-weight:600;">$${o.total.toFixed(2)}</td>
       <td><span class="badge ${getStatusBadgeClass(o.status)}">${o.status}</span></td>
     </tr>
   `).join('');
+
+  // Add click handlers
+  tbody.querySelectorAll('.clickable-row').forEach(row => {
+    row.addEventListener('click', () => showOrderDetail(row.dataset.id));
+  });
 }
 
 // ============================================
@@ -347,43 +404,24 @@ function renderOrdersTable() {
   const orders = [...db.getOrders()].reverse();
 
   if (orders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-sub);">No orders found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-sub);">No orders found</td></tr>`;
     return;
   }
 
   tbody.innerHTML = orders.map(o => `
-    <tr>
-      <td style="font-weight:600;">${o.id}</td>
-      <td style="font-size:12px;color:var(--text-sub);">${formatDate(o.date)}</td>
+    <tr class="clickable-row" data-type="order" data-id="${o.id}">
       <td>
         <div style="font-weight:600;">${o.customer.name}</div>
-        <div style="font-size:12px;color:var(--text-sub);">${o.customer.email} | ${o.customer.phone}</div>
+        <div style="font-size:12px;color:var(--text-sub);">${o.customer.email}</div>
       </td>
       <td style="font-weight:600;">$${o.total.toFixed(2)}</td>
-      <td><span class="badge ${getStatusBadgeClass(o.status)}" id="badge-${o.id}">${o.status}</span></td>
-      <td>
-        <select class="status-select" data-id="${o.id}">
-          <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
-          <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
-          <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-        </select>
-      </td>
+      <td><span class="badge ${getStatusBadgeClass(o.status)}">${o.status}</span></td>
     </tr>
   `).join('');
 
-  document.querySelectorAll('.status-select').forEach(sel => {
-    sel.addEventListener('change', (e) => {
-      const id = e.target.dataset.id;
-      const newStatus = e.target.value;
-      db.updateOrderStatus(id, newStatus);
-      
-      const badge = document.getElementById(`badge-${id}`);
-      if (badge) {
-        badge.className = `badge ${getStatusBadgeClass(newStatus)}`;
-        badge.textContent = newStatus;
-      }
-      renderKPIs();
-    });
+  // Add click handlers
+  tbody.querySelectorAll('.clickable-row').forEach(row => {
+    row.addEventListener('click', () => showOrderDetail(row.dataset.id));
   });
 }
 
@@ -395,60 +433,15 @@ function renderProductsTable() {
   const products = db.getProducts();
 
   tbody.innerHTML = products.map(p => `
-    <tr>
-      <td>
-        <div class="product-cell-img">
-          <img src="${p.images[0]}" alt="${p.name}">
-          <div>
-            <div class="product-cell-name">${p.name}</div>
-            <div style="font-size:12px;color:var(--text-sub);">ID: ${p.id} | ${p.brand || 'Unbranded'}</div>
-          </div>
-        </div>
-      </td>
-      <td style="text-transform:capitalize;">${p.category} <br><span style="font-size:12px;color:#999;">${p.gender || 'Uni-sex'}</span></td>
+    <tr class="clickable-row" data-type="product" data-id="${p.id}">
+      <td style="font-weight:600;">${p.name}</td>
       <td style="font-weight:600;">$${p.price} ${p.discount ? `<span style="color:var(--danger);font-size:12px;margin-left:4px;">-${p.discount}%</span>` : ''}</td>
-      <td>
-        <span class="badge ${p.inStock ? 'stock-in' : 'stock-out'}" id="stock-badge-${p.id}">
-          ${p.inStock ? 'In Stock' : 'Out of Stock'}
-        </span>
-      </td>
-      <td style="display:flex; gap:8px;">
-        <button class="action-btn" onclick="openEditModal(${p.id})">Edit</button>
-        <button class="action-btn ${p.inStock ? '' : 'primary'}" data-action="toggle-stock" data-id="${p.id}">
-          ${p.inStock ? 'Out of Stock' : 'In Stock'}
-        </button>
-        <button class="action-btn" style="color:var(--danger); border-color:#FCA5A5;" data-action="delete" data-id="${p.id}">
-          Delete
-        </button>
-      </td>
     </tr>
   `).join('');
 
-  document.querySelectorAll('button[data-action="toggle-stock"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = parseInt(e.target.dataset.id);
-      const product = db.getProductById(id);
-      const newStatus = !product.inStock;
-      db.updateProductStock(id, newStatus);
-      
-      const badge = document.getElementById(`stock-badge-${id}`);
-      if (badge) {
-        badge.className = `badge ${newStatus ? 'stock-in' : 'stock-out'}`;
-        badge.textContent = newStatus ? 'In Stock' : 'Out of Stock';
-      }
-      e.target.className = `action-btn ${newStatus ? '' : 'primary'}`;
-      e.target.textContent = newStatus ? 'Out of Stock' : 'In Stock';
-    });
-  });
-
-  document.querySelectorAll('button[data-action="delete"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      if (confirm('Are you certain you want to permanently delete this product?')) {
-        const id = parseInt(e.target.dataset.id);
-        db.deleteProduct(id);
-        renderProductsTable();
-      }
-    });
+  // Add click handlers
+  tbody.querySelectorAll('.clickable-row').forEach(row => {
+    row.addEventListener('click', () => showProductDetail(row.dataset.id));
   });
 }
 
@@ -463,28 +456,219 @@ function renderCustomersTable() {
   if (countEl) countEl.textContent = `${customers.length} registered`;
 
   if (customers.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-sub);">No customers yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--text-sub);">No customers yet</td></tr>`;
     return;
   }
 
   tbody.innerHTML = customers.map(c => `
-    <tr>
-      <td>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">
-            ${c.name.charAt(0).toUpperCase()}
-          </div>
-          <span style="font-weight:600;">${c.name}</span>
-        </div>
-      </td>
-      <td style="color:var(--text-sub);">${c.email}</td>
+    <tr class="clickable-row" data-type="customer" data-id="${c.email}">
+      <td style="font-weight:600;">${c.name}</td>
       <td style="color:var(--text-sub);">${c.phone || '—'}</td>
-      <td>
-        <span class="badge ${c.orderCount > 0 ? 'status-shipped' : ''}">${c.orderCount} order${c.orderCount !== 1 ? 's' : ''}</span>
-      </td>
-      <td style="font-weight:600;">${c.totalSpend > 0 ? '$' + c.totalSpend.toFixed(2) : '—'}</td>
     </tr>
   `).join('');
+
+  // Add click handlers
+  tbody.querySelectorAll('.clickable-row').forEach(row => {
+    row.addEventListener('click', () => showCustomerDetail(row.dataset.id));
+  });
 }
+
+// ============================================
+// Detail Modal Functions
+// ============================================
+function showOrderDetail(orderId) {
+  const order = db.getOrderById(orderId);
+  if (!order) return;
+
+  const modal = document.getElementById('orderDetailModal');
+  const content = document.getElementById('orderDetailContent');
+
+  const itemsHtml = order.items.map(item => {
+    const product = db.getProductById(item.productId);
+    return `
+      <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px;">
+        <img src="${product?.images[0] || ''}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
+        <div>
+          <div style="font-weight:600;">${product?.name || 'Unknown Product'}</div>
+          <div style="font-size:12px; color:var(--text-sub);">Size: ${item.size} | Color: ${item.color}</div>
+          <div style="font-size:12px; color:var(--text-sub);">Qty: ${item.quantity}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  content.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Order ID</div>
+      <div style="font-weight:600; font-size:18px;">${order.id}</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Customer</div>
+        <div style="font-weight:600;">${order.customer.name}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Status</div>
+        <span class="badge ${getStatusBadgeClass(order.status)}">${order.status}</span>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Date</div>
+        <div>${formatDate(order.date)}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Total</div>
+        <div style="font-weight:600; font-size:18px;">$${order.total.toFixed(2)}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Contact</div>
+      <div>${order.customer.email}</div>
+      <div>${order.customer.phone}</div>
+    </div>
+    <div>
+      <div style="font-size:12px; color:var(--text-sub); margin-bottom:8px;">Items (${order.items.length})</div>
+      ${itemsHtml}
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function showProductDetail(productId) {
+  const product = db.getProductById(parseInt(productId));
+  if (!product) return;
+
+  const modal = document.getElementById('productDetailModal');
+  const content = document.getElementById('productDetailContent');
+
+  const colorsHtml = product.colors?.map(c => `
+    <span style="display:inline-block; width:20px; height:20px; background:${c}; border-radius:50%; border:1px solid #ddd;"></span>
+  `).join('') || '—';
+
+  const sizesHtml = product.sizes?.join(', ') || '—';
+
+  content.innerHTML = `
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="${product.images[0]}" style="width:200px; height:200px; object-fit:cover; border-radius:12px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Product Name</div>
+      <div style="font-weight:600; font-size:18px;">${product.name}</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Price</div>
+        <div style="font-weight:600; font-size:18px;">$${product.price} ${product.discount ? `<span style="color:var(--danger);">-${product.discount}%</span>` : ''}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Stock Status</div>
+        <span class="badge ${product.inStock ? 'stock-in' : 'stock-out'}">${product.inStock ? 'In Stock' : 'Out of Stock'}</span>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Category</div>
+        <div style="text-transform:capitalize;">${product.category}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Brand</div>
+        <div>${product.brand || '—'}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Colors</div>
+      <div style="display:flex; gap:8px;">${colorsHtml}</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Sizes</div>
+      <div>${sizesHtml}</div>
+    </div>
+    <div>
+      <div style="font-size:12px; color:var(--text-sub);">Description</div>
+      <div style="font-size:14px; line-height:1.5;">${product.description || 'No description'}</div>
+    </div>
+    <div style="margin-top:24px; display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap;">
+      <button class="action-btn ${product.inStock ? '' : 'primary'}" onclick="toggleProductStock(${product.id}); closeProductDetailModal(); renderProductsTable();">
+        ${product.inStock ? 'Out of Stock' : 'In Stock'}
+      </button>
+      <button class="action-btn" style="color:var(--danger); border-color:#FCA5A5;" onclick="deleteProduct(${product.id}); closeProductDetailModal(); renderProductsTable();">
+        Delete Product
+      </button>
+      <button class="action-btn primary" onclick="closeProductDetailModal(); openEditModal(${product.id});">Edit Product</button>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function showCustomerDetail(customerEmail) {
+  const customers = db.getCustomers();
+  const customer = customers.find(c => c.email === customerEmail);
+  if (!customer) return;
+
+  const modal = document.getElementById('customerDetailModal');
+  const content = document.getElementById('customerDetailContent');
+
+  content.innerHTML = `
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="width:80px; height:80px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:32px; margin:0 auto;">
+        ${customer.name.charAt(0).toUpperCase()}
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; color:var(--text-sub);">Name</div>
+      <div style="font-weight:600; font-size:18px;">${customer.name}</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Email</div>
+        <div>${customer.email}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Phone</div>
+        <div>${customer.phone || '—'}</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Total Orders</div>
+        <div style="font-weight:600; font-size:24px;">${customer.orderCount}</div>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--text-sub);">Total Spend</div>
+        <div style="font-weight:600; font-size:24px;">$${customer.totalSpend.toFixed(2)}</div>
+      </div>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+// Global functions for onclick handlers
+window.closeOrderDetailModal = () => document.getElementById('orderDetailModal').style.display = 'none';
+window.closeProductDetailModal = () => document.getElementById('productDetailModal').style.display = 'none';
+window.closeCustomerDetailModal = () => document.getElementById('customerDetailModal').style.display = 'none';
+
+window.toggleProductStock = (id) => {
+  const product = db.getProductById(id);
+  if (product) {
+    db.updateProductStock(id, !product.inStock);
+  }
+};
+
+window.deleteProduct = (id) => {
+  if (confirm('Are you certain you want to permanently delete this product?')) {
+    db.deleteProduct(id);
+  }
+};
+
+// Add overlay click handlers for detail modals
+document.getElementById('orderDetailModal').addEventListener('click', (e) => {
+  if (e.target.id === 'orderDetailModal') closeOrderDetailModal();
+});
+document.getElementById('productDetailModal').addEventListener('click', (e) => {
+  if (e.target.id === 'productDetailModal') closeProductDetailModal();
+});
+document.getElementById('customerDetailModal').addEventListener('click', (e) => {
+  if (e.target.id === 'customerDetailModal') closeCustomerDetailModal();
+});
 
 document.addEventListener('DOMContentLoaded', initDashboard);

@@ -15,7 +15,10 @@ const AVAILABLE_COLORS = [
   { name: 'Gold', hex: '#FFD700' }, { name: 'Silver', hex: '#C0C0C0' }, { name: 'Multi-color', hex: 'linear-gradient(45deg, red, blue, green, yellow)' }
 ];
 
-function initDashboard() {
+async function initDashboard() {
+  // MUST initialise db before any other db call
+  await db.init();
+
   // 1. Auth Check
   const user = db.getCurrentUser();
   if (!user || user.role !== 'admin') {
@@ -87,6 +90,21 @@ function initDashboard() {
   // 4. Modal Handlers
   setupProductModal();
 
+  // 5. Modal overlay click-outside-to-close (must be inside DOMContentLoaded — elements exist now)
+  document.getElementById('orderDetailModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'orderDetailModal') closeOrderDetailModal();
+  });
+  document.getElementById('productDetailModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'productDetailModal') closeProductDetailModal();
+  });
+  document.getElementById('customerDetailModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'customerDetailModal') closeCustomerDetailModal();
+  });
+
+  // Listeners for products filter
+  document.getElementById('adminProductSearch')?.addEventListener('input', renderProductsTable);
+  document.getElementById('adminProductCategory')?.addEventListener('change', renderProductsTable);
+
   // INITIAL RENDER
   renderKPIs();
   renderProductsTable();
@@ -108,6 +126,8 @@ function getStatusBadgeClass(status) {
   if (status === 'Shipped') return 'status-shipped';
   if (status === 'Delivered') return 'status-delivered';
   if (status === 'payment_failed') return 'status-failed';
+  if (status === 'Cancellation Requested') return 'status-pending';
+  if (status === 'Cancelled') return 'status-failed';
   return '';
 }
 
@@ -217,7 +237,7 @@ function setupProductModal() {
   document.getElementById('cancelProductBtn')?.addEventListener('click', close);
 
   // Form Submit
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // Collect Colors & Sizes
@@ -260,10 +280,10 @@ function setupProductModal() {
     
     const editId = document.getElementById('editProductId').value;
     if (editId) {
-      db.updateProduct(parseInt(editId), productData);
+      await db.updateProduct(parseInt(editId), productData);
     } else {
       productData.tag = 'new'; // default
-      db.addProduct(productData);
+      await db.addProduct(productData);
     }
     
     close();
@@ -323,8 +343,8 @@ function setupProductModal() {
 // ============================================
 // Dashboard KPIs View
 // ============================================
-function renderKPIs() {
-  const orders = db.getOrders();
+async function renderKPIs() {
+  const orders = await db.getOrders();
   let rev = 0;
   let active = 0;
 
@@ -335,10 +355,12 @@ function renderKPIs() {
     if (['paid', 'Processing', 'Shipped', 'pending_payment'].includes(o.status)) active++;
   });
 
+  const customers = await db.getCustomers();
+
   document.getElementById('kpiRevenue').textContent = `$${rev.toFixed(2)}`;
   document.getElementById('kpiOrders').textContent = orders.length;
   document.getElementById('kpiActive').textContent = active;
-  document.getElementById('kpiCustomers').textContent = db.getCustomers().length;
+  document.getElementById('kpiCustomers').textContent = customers.length;
 
   const chart = document.getElementById('salesChart');
   const labels = document.getElementById('salesChartLabels');
@@ -399,9 +421,9 @@ function renderKPIs() {
 // ============================================
 // Orders Management View
 // ============================================
-function renderOrdersTable() {
+async function renderOrdersTable() {
   const tbody = document.getElementById('allOrdersTbody');
-  const orders = [...db.getOrders()].reverse();
+  const orders = [...await db.getOrders()].reverse();
 
   if (orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-sub);">No orders found</td></tr>`;
@@ -430,7 +452,24 @@ function renderOrdersTable() {
 // ============================================
 function renderProductsTable() {
   const tbody = document.getElementById('productsTbody');
-  const products = db.getProducts();
+  let products = db.getProducts();
+
+  const searchInput = document.getElementById('adminProductSearch');
+  const categorySelect = document.getElementById('adminProductCategory');
+  
+  if (searchInput && searchInput.value) {
+    const term = searchInput.value.toLowerCase();
+    products = products.filter(p => p.name.toLowerCase().includes(term));
+  }
+  
+  if (categorySelect && categorySelect.value) {
+    products = products.filter(p => p.category === categorySelect.value);
+  }
+
+  if (products.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--text-sub);">No products found</td></tr>`;
+    return;
+  }
 
   tbody.innerHTML = products.map(p => `
     <tr class="clickable-row" data-type="product" data-id="${p.id}">
@@ -448,10 +487,10 @@ function renderProductsTable() {
 // ============================================
 // Customers View
 // ============================================
-function renderCustomersTable() {
+async function renderCustomersTable() {
   const tbody = document.getElementById('customersTbody');
   const countEl = document.getElementById('customerCount');
-  const customers = db.getCustomers();
+  const customers = await db.getCustomers();
 
   if (countEl) countEl.textContent = `${customers.length} registered`;
 
@@ -476,8 +515,8 @@ function renderCustomersTable() {
 // ============================================
 // Detail Modal Functions
 // ============================================
-function showOrderDetail(orderId) {
-  const order = db.getOrderById(orderId);
+async function showOrderDetail(orderId) {
+  const order = await db.getOrderById(orderId);
   if (!order) return;
 
   const modal = document.getElementById('orderDetailModal');
@@ -529,6 +568,11 @@ function showOrderDetail(orderId) {
       <div style="font-size:12px; color:var(--text-sub); margin-bottom:8px;">Items (${order.items.length})</div>
       ${itemsHtml}
     </div>
+    ${order.status === 'Cancellation Requested' ? `
+      <div style="margin-top:24px; display:flex; justify-content:flex-end;">
+        <button class="action-btn" style="background:var(--danger); color:#fff; border:none;" onclick="approveCancellation('${order.id}'); closeOrderDetailModal(); renderOrdersTable(); renderKPIs();">Approve Cancellation</button>
+      </div>
+    ` : ''}
   `;
 
   modal.style.display = 'flex';
@@ -599,8 +643,8 @@ function showProductDetail(productId) {
   modal.style.display = 'flex';
 }
 
-function showCustomerDetail(customerEmail) {
-  const customers = db.getCustomers();
+async function showCustomerDetail(customerEmail) {
+  const customers = await db.getCustomers();
   const customer = customers.find(c => c.email === customerEmail);
   if (!customer) return;
 
@@ -660,15 +704,10 @@ window.deleteProduct = (id) => {
   }
 };
 
-// Add overlay click handlers for detail modals
-document.getElementById('orderDetailModal').addEventListener('click', (e) => {
-  if (e.target.id === 'orderDetailModal') closeOrderDetailModal();
-});
-document.getElementById('productDetailModal').addEventListener('click', (e) => {
-  if (e.target.id === 'productDetailModal') closeProductDetailModal();
-});
-document.getElementById('customerDetailModal').addEventListener('click', (e) => {
-  if (e.target.id === 'customerDetailModal') closeCustomerDetailModal();
-});
+window.approveCancellation = async (orderId) => {
+  if (confirm('Are you sure you want to approve this cancellation and process the refund?')) {
+    await db.updateOrderStatus(orderId, 'Cancelled');
+  }
+};
 
 document.addEventListener('DOMContentLoaded', initDashboard);

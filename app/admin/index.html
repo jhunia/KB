@@ -168,9 +168,28 @@
     <!-- 4. Products View -->
     <div class="page-container" id="view-products">
       <div class="table-wrapper">
-        <div class="table-header">
+        <div class="table-header" style="display:flex; flex-wrap:wrap; gap:16px; align-items:center;">
           <h2>Product Inventory</h2>
-          <button class="action-btn primary" id="openAddProductModalBtn">+ Add Product</button>
+          <div style="display:flex; gap:12px; margin-left:auto;">
+            <input type="text" id="adminProductSearch" placeholder="Search products..." style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; outline:none;">
+            <select id="adminProductCategory" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px; outline:none; background:#fff;">
+              <option value="">All Categories</option>
+              <option value="tshirts">T-Shirts</option>
+              <option value="shirts">Shirts</option>
+              <option value="polos">Polo Shirts</option>
+              <option value="hoodies">Hoodies & Sweatshirts</option>
+              <option value="jackets">Jackets & Coats</option>
+              <option value="suits">Suits</option>
+              <option value="jeans">Jeans & Denim</option>
+              <option value="trousers">Trousers</option>
+              <option value="shorts">Shorts</option>
+              <option value="jerseys">Jerseys</option>
+              <option value="shoes">Shoes & Sneakers</option>
+              <option value="boots">Boots</option>
+              <option value="accessories">Accessories</option>
+            </select>
+            <button class="action-btn primary" id="openAddProductModalBtn">+ Add Product</button>
+          </div>
         </div>
         <table>
           <thead>

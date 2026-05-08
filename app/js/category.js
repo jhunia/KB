@@ -26,14 +26,16 @@ function createProductCardHTML(product) {
         </button>
       </div>
       <h3 class="product-card-title">${product.name}</h3>
-      <div class="product-card-rating">
-        <span class="stars">${renderStars(product.rating)}</span>
-        <span class="rating-text">${product.rating}/5</span>
-      </div>
-      <div class="product-card-price">
-        <span class="price-current">$${product.price}</span>
-        ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-        ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div class="product-card-price" style="margin-top: 0;">
+          <span class="price-current">$${product.price}</span>
+          ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
+          ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
+        </div>
+        <div class="product-card-rating" style="margin-top: 0; display: flex; align-items: center; gap: 4px;">
+          <span class="stars" style="color: #FFB800;">★</span>
+          <span class="rating-text">${product.rating}/5</span>
+        </div>
       </div>
     </div>
   `;
@@ -178,9 +180,15 @@ function renderBrandsView() {
   brandsGrid.innerHTML = brands.map(brand => {
     // Count products for this brand
     const count = db.getProductsByBrand(brand).length;
+    const brandStr = String(brand);
+    const brandFileName = brandStr.toLowerCase().replace(/[\s&]+/g, '_') + '.png';
     return `
-      <a href="/category.html?brand=${encodeURIComponent(brand)}" class="brand-card">
-        <h3 class="brand-card-title">${brand}</h3>
+      <a href="/category.html?brand=${encodeURIComponent(brandStr)}" class="brand-card">
+        <div style="width: 80px; height: 80px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; border: 1px solid var(--border); overflow: hidden; padding: 10px;">
+          <img src="/assets/images/brands/${brandFileName}" alt="${brandStr}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <span style="display:none; font-weight: bold; font-size: 28px; color: #ccc; align-items: center; justify-content: center; width: 100%; height: 100%;">${brandStr.charAt(0).toUpperCase()}</span>
+        </div>
+        <h3 class="brand-card-title">${brandStr}</h3>
         <p class="brand-card-count">${count} Product${count !== 1 ? 's' : ''}</p>
       </a>
     `;
@@ -325,7 +333,10 @@ function updateBadge() {
 // ============================================
 // INIT
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // MUST initialise db before any other db call
+  await db.init();
+
   readURLParams();
 
   const params = new URLSearchParams(window.location.search);

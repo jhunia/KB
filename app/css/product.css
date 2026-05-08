@@ -296,22 +296,19 @@
 /* Mobile Gallery Dots */
 .gallery-dots {
   display: none;
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+  justify-content: center;
+  align-items: center;
   gap: 6px;
-  z-index: 5;
+  margin-top: 12px;
 }
 
 .gallery-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.5);
+  background: var(--gray-300);
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(0,0,0,0.2);
 }
 
 .gallery-dot.active {
@@ -406,6 +403,10 @@
   border-radius: var(--radius-full);
   font-size: 14px;
   font-weight: 500;
+}
+
+.btn-label-short {
+  display: none;
 }
 
 .review-filter-btn {
@@ -554,4 +555,39 @@
     width: calc(50vw - 28px);
     min-width: calc(50vw - 28px);
   }
+
+  /* Shorten "Write a Review" to "Review" on small screens */
+  .write-review-btn .btn-label-full { display: none; }
+  .write-review-btn .btn-label-short { display: inline; }
+}
+
+/* Review action buttons (edit / delete) */
+.review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.review-action-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  transition: all 0.2s ease;
+}
+
+.review-action-btn:hover {
+  background: var(--gray-100);
+}
+
+.review-action-btn.delete {
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+.review-action-btn.delete:hover {
+  background: #fef2f2;
 }

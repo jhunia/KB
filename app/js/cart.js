@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, escapeHTML } from './db.js';
 import { loadPaystackScript, initPaystackPayment } from './paystack.js';
 
 let discountPercent = 0;
@@ -280,8 +280,33 @@ function bindCartEvents() {
       paymentMethod: 'paystack'
     };
 
+    // --- Input Validation ---
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRaw = order.customer.phone.replace(/[\s\-().+]/g, '');
+
+    if (!order.customer.name || order.customer.name.trim().length < 2) {
+      alert('Please enter your full name (at least 2 characters).');
+      modal.classList.add('open');
+      return;
+    }
+    if (!emailRegex.test(order.customer.email)) {
+      alert('Please enter a valid email address (e.g. you@example.com).');
+      modal.classList.add('open');
+      return;
+    }
+    if (!/^\d{7,15}$/.test(phoneRaw)) {
+      alert('Please enter a valid phone number (digits only, 7–15 characters).');
+      modal.classList.add('open');
+      return;
+    }
+    if (!order.customer.address || order.customer.address.trim().length < 5) {
+      alert('Please enter a delivery address.');
+      modal.classList.add('open');
+      return;
+    }
+
     // Save order to DB with pending_payment status BEFORE opening Paystack.
-    currentOrder = db.addOrder(order, 'pending_payment');
+    currentOrder = await db.addOrder(order, 'pending_payment');
 
     // Close the checkout form modal
     modal.classList.remove('open');
@@ -310,9 +335,9 @@ function bindCartEvents() {
   });
 
   // Handle successful payment
-  function handlePaymentSuccess(order, response) {
+  async function handlePaymentSuccess(order, response) {
     // Update order status to paid
-    db.updateOrderStatus(order.id, 'paid');
+    await db.updateOrderStatus(order.id, 'paid');
 
     // NOW it is safe to clear the cart — payment is confirmed
     db.clearCart();
@@ -330,7 +355,7 @@ function bindCartEvents() {
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
         </div>
         <h2 style="font-family:var(--font-display);font-size:32px;margin-bottom:12px;">Payment Successful! 🎉</h2>
-        <p style="color:var(--gray-600);font-size:16px;max-width:480px;margin:0 auto 8px;">Thank you, <strong>${guestName}</strong>. Your payment has been received and your order is confirmed.</p>
+        <p style="color:var(--gray-600);font-size:16px;max-width:480px;margin:0 auto 8px;">Thank you, <strong>${escapeHTML(guestName)}</strong>. Your payment has been received and your order is confirmed.</p>
         <p style="color:var(--gray-500);font-size:14px;margin-bottom:20px;">Order ID: <strong style="color:var(--black);">${order.id}</strong></p>
         <p style="color:var(--gray-500);font-size:14px;margin-bottom:40px;">Transaction Ref: <strong>${response.reference}</strong></p>
 
@@ -364,12 +389,12 @@ function bindCartEvents() {
 
     // Bind post-purchase sign-up form
     if (isGuest) {
-      document.getElementById('postSignupForm')?.addEventListener('submit', (e) => {
+      document.getElementById('postSignupForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name  = document.getElementById('postSignupName').value.trim();
         const email = document.getElementById('postSignupEmail').value.trim();
         const pass  = document.getElementById('postSignupPass').value;
-        const result = db.signup(name, email, pass, order.customer.phone);
+        const result = await db.signup(name, email, pass, order.customer.phone);
 
         if (result.success) {
           // Save the 10% promo for their next visit
@@ -512,3 +537,12 @@ function renderStillInterested() {
     });
   });
 }
+
+// ============================================
+// ENTRY POINT — must await db.init() first so
+// the cart cache is populated before rendering
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+  await db.init();
+  initCartPage();
+});

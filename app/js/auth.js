@@ -1,6 +1,8 @@
 import { db } from './db.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // MUST initialise db before any other db call
+  await db.init();
   const tabLogin = document.getElementById('tabLogin');
   const tabSignup = document.getElementById('tabSignup');
   const formLogin = document.getElementById('loginForm');
@@ -55,12 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Login Submit ---
-  formLogin.addEventListener('submit', (e) => {
+  formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
 
-    const res = db.login(email, password);
+    showAlert('Logging in…', 'success');
+    const res = await db.login(email, password);
     if (res.success) {
       if (res.user.role === 'admin') redirectUrl = '/admin/index.html';
       window.location.href = redirectUrl;
@@ -70,14 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Signup Submit ---
-  formSignup.addEventListener('submit', (e) => {
+  formSignup.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
     const phone = document.getElementById('signupPhone').value.trim();
     const password = document.getElementById('signupPassword').value.trim();
 
-    const res = db.signup(name, email, password, phone);
+    showAlert('Creating account…', 'success');
+    const res = await db.signup(name, email, password, phone);
     if (res.success) {
       window.location.href = redirectUrl;
     } else {

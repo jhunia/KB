@@ -1,6 +1,9 @@
 import { db } from '../../js/db.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // MUST initialise db before any other db call
+  await db.init();
+
   // Check if already logged in as admin
   const user = db.getCurrentUser();
   if (user && user.role === 'admin') {
@@ -11,14 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('adminLoginForm');
   const errorMsg = document.getElementById('errorMsg');
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorMsg.style.display = 'none';
 
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value.trim();
 
-    const result = db.login(email, password);
+    errorMsg.textContent = 'Logging in…';
+    errorMsg.style.display = 'block';
+    const result = await db.login(email, password);
 
     if (result.success) {
       if (result.user.role === 'admin') {

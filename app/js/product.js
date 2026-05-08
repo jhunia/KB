@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, escapeHTML } from './db.js';
 
 // ============================================
 // State
@@ -50,7 +50,7 @@ window.createProductCardHTML = function(product) {
 // ============================================
 // Initialization
 // ============================================
-function initProductPage() {
+async function initProductPage() {
   const params = new URLSearchParams(window.location.search);
   const idStr = params.get('id');
   const id = idStr ? parseInt(idStr) : 1; // Default to product 1 if no ID
@@ -71,7 +71,7 @@ function initProductPage() {
   }
 
   renderProductInfo();
-  renderReviews();
+  await renderReviews();
   renderCompleteYourFit();
   renderExplore();
   initCartDrawer();
@@ -130,12 +130,12 @@ function renderProductInfo() {
       <div class="gallery-thumbs" id="galleryThumbs">
         ${thumbsHTML}
       </div>
+      <!-- Mobile dot indicators (placed before main so column-reverse puts them below) -->
+      <div class="gallery-dots" id="galleryDots">
+        ${currentProduct.images.map((_, i) => `<span class="gallery-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`).join('')}
+      </div>
       <div class="gallery-main" id="galleryMain">
         ${mainImageHTML}
-        <!-- Mobile dot indicators -->
-        <div class="gallery-dots" id="galleryDots">
-          ${currentProduct.images.map((_, i) => `<span class="gallery-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>`).join('')}
-        </div>
         <!-- Mobile fav button -->
         <button class="mobile-wishlist-btn ${db.isInWishlist(currentProduct.id) ? 'active' : ''}" id="mobileWishlistBtn" aria-label="Add to wishlist">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="${db.isInWishlist(currentProduct.id) ? '#FF3333' : 'none'}" stroke="${db.isInWishlist(currentProduct.id) ? '#FF3333' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -298,9 +298,10 @@ function showToast(message) {
 // ============================================
 // Render Reviews
 // ============================================
-function renderReviews() {
+async function renderReviews() {
   const container = document.getElementById('reviewsSection');
-  const reviews = db.getReviews(currentProduct.id);
+  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:#999;">Loading reviews…</div>';
+  const reviews = await db.getReviews(currentProduct.id);
 
   container.innerHTML = `
     <div class="reviews-header">
@@ -313,33 +314,144 @@ function renderReviews() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
           Latest
         </button>
-        <button class="write-review-btn">Write a Review</button>
+        <button class="write-review-btn">
+          <span class="btn-label-full">Write a Review</span>
+          <span class="btn-label-short">Review</span>
+        </button>
       </div>
     </div>
     <div class="reviews-grid">
-      ${reviews.map(r => `
-        <div class="review-card">
-          <div class="review-stars">${renderStars(r.rating)}</div>
-          <div class="review-author">${r.user} ${r.verified ? '<span class="verified-badge" style="display:inline-flex;width:16px;height:16px;border-radius:50%;background:#10B981;color:white;font-size:10px;align-items:center;justify-content:center;">✓</span>' : ''}</div>
-          <p class="review-text">${r.text}</p>
-          <div class="review-date">Posted on ${r.date}</div>
-        </div>
-      `).join('')}
+      ${reviews.length > 0 ? reviews.map(r => {
+        const isOwner = db.getCurrentUser() && db.getCurrentUser().id === r.userId;
+        return `
+          <div class="review-card" data-review-id="${r.id}">
+            <div class="review-stars">${renderStars(r.rating)}</div>
+            <div class="review-author">${escapeHTML(r.user)} ${r.verified ? '<span class="verified-badge" style="display:inline-flex;width:16px;height:16px;border-radius:50%;background:#10B981;color:white;font-size:10px;align-items:center;justify-content:center;">✓</span>' : ''}</div>
+            <p class="review-text">${escapeHTML(r.text)}</p>
+            <div class="review-date">Posted on ${escapeHTML(r.date)}</div>
+            ${isOwner ? `
+              <div class="review-actions">
+                <button class="review-action-btn edit-review-btn"
+                  data-rating="${r.rating}"
+                  data-body="${escapeHTML(r.text)}">Edit</button>
+                <button class="review-action-btn delete delete-review-btn">Delete</button>
+              </div>` : ''}
+          </div>
+        `;
+      }).join('') : '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#666;">No reviews yet. Be the first to review this product!</div>'}
     </div>
-    ${reviews.length === 0 ? '<div style="text-align:center;padding:40px 0;color:#666;">No reviews yet.</div>' : ''}
+
+    <!-- Write Review Modal -->
+    <div id="reviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;position:relative;">
+        <button id="closeReviewModal" style="position:absolute;top:16px;right:16px;font-size:20px;background:none;border:none;cursor:pointer;">✕</button>
+        <h3 style="font-family:var(--font-display);font-size:20px;margin-bottom:20px;">Write a Review</h3>
+        <form id="reviewForm">
+          <div style="margin-bottom:16px;">
+            <label style="display:block;margin-bottom:8px;font-weight:600;">Rating</label>
+            <div id="starPicker" style="display:flex;gap:8px;font-size:28px;cursor:pointer;color:#ccc;">
+              ${[1,2,3,4,5].map(n => `<span data-val="${n}">★</span>`).join('')}
+            </div>
+            <input type="hidden" id="reviewRating" value="0">
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block;margin-bottom:8px;font-weight:600;">Your Review</label>
+            <textarea id="reviewBody" required rows="4" placeholder="Share your thoughts about this product…" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+          </div>
+          <button type="submit" style="width:100%;padding:14px;background:#000;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Submit Review</button>
+          <p id="reviewError" style="color:red;font-size:13px;margin-top:8px;display:none;"></p>
+        </form>
+      </div>
+    </div>
   `;
 
+  // Star picker interaction
+  const starPicker = container.querySelector('#starPicker');
+  const ratingInput = container.querySelector('#reviewRating');
+  if (starPicker) {
+    starPicker.querySelectorAll('span').forEach(star => {
+      star.addEventListener('click', () => {
+        const val = parseInt(star.dataset.val);
+        ratingInput.value = val;
+        starPicker.querySelectorAll('span').forEach((s, i) => {
+          s.style.color = i < val ? '#FFB800' : '#ccc';
+        });
+      });
+    });
+  }
+
+  // Write review button
   const writeReviewBtn = container.querySelector('.write-review-btn');
-  if (writeReviewBtn) {
+  const reviewModal = container.querySelector('#reviewModal');
+  if (writeReviewBtn && reviewModal) {
     writeReviewBtn.addEventListener('click', () => {
       const user = db.getCurrentUser();
       if (!user) {
-        window.location.href = `/auth.html?redirect=/product.html?id=${currentProduct.id}&review=true`;
+        window.location.href = `/auth.html?redirect=/product.html?id=${currentProduct.id}`;
+        return;
+      }
+      reviewModal.style.display = 'flex';
+    });
+    container.querySelector('#closeReviewModal')?.addEventListener('click', () => { reviewModal.style.display = 'none'; });
+  }
+
+  // Review form submit (handles both new + edit)
+  let editingReview = false;
+  container.querySelector('#reviewForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rating = parseInt(container.querySelector('#reviewRating').value);
+    const body = container.querySelector('#reviewBody').value.trim();
+    const errEl = container.querySelector('#reviewError');
+    if (rating === 0) { errEl.textContent = 'Please select a rating.'; errEl.style.display = 'block'; return; }
+    if (!body) { errEl.textContent = 'Please write something.'; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+    const result = editingReview
+      ? await db.editReview(currentProduct.id, rating, body)
+      : await db.addReview(currentProduct.id, rating, body);
+    if (result.success) {
+      const wasEditing = editingReview;
+      reviewModal.style.display = 'none';
+      editingReview = false;
+      showToast(wasEditing ? 'Review updated!' : 'Review submitted! Thank you.');
+      await renderReviews();
+    } else {
+      errEl.textContent = result.message;
+      errEl.style.display = 'block';
+    }
+  });
+
+  // Edit review buttons — pre-fill modal
+  container.querySelectorAll('.edit-review-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rating = parseInt(btn.dataset.rating);
+      const body = btn.dataset.body;
+      editingReview = true;
+      container.querySelector('#reviewForm h3') && (container.querySelector('h3').textContent = 'Edit Your Review');
+      container.querySelector('#reviewModal h3').textContent = 'Edit Your Review';
+      container.querySelector('#reviewModal button[type="submit"]').textContent = 'Save Changes';
+      container.querySelector('#reviewBody').value = body;
+      const ratingInput = container.querySelector('#reviewRating');
+      ratingInput.value = rating;
+      container.querySelectorAll('#starPicker span').forEach((s, i) => {
+        s.style.color = i < rating ? '#FFB800' : '#ccc';
+      });
+      reviewModal.style.display = 'flex';
+    });
+  });
+
+  // Delete review buttons
+  container.querySelectorAll('.delete-review-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to delete your review?')) return;
+      const result = await db.deleteReview(currentProduct.id);
+      if (result.success) {
+        showToast('Review deleted.');
+        await renderReviews();
       } else {
-        showToast("Review modal is under construction!");
+        showToast('Could not delete review. Please try again.');
       }
     });
-  }
+  });
 }
 
 // ============================================
@@ -445,7 +557,10 @@ function updateBadge() {
 // ============================================
 // On Load
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // MUST initialise db before any other db call
+  await db.init();
+
   initProductPage();
 
   // Banner

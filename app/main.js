@@ -37,14 +37,16 @@ window.createProductCardHTML = function(product) {
         </button>
       </div>
       <h3 class="product-card-title">${product.name}</h3>
-      <div class="product-card-rating">
-        <span class="stars">${renderStars(product.rating)}</span>
-        <span class="rating-text">${product.rating}/5</span>
-      </div>
-      <div class="product-card-price">
-        <span class="price-current">$${product.price}</span>
-        ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-        ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div class="product-card-price" style="margin-top: 0;">
+          <span class="price-current">$${product.price}</span>
+          ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
+          ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
+        </div>
+        <div class="product-card-rating" style="margin-top: 0; display: flex; align-items: center; gap: 4px;">
+          <span class="stars" style="color: #FFB800;">★</span>
+          <span class="rating-text">${product.rating}/5</span>
+        </div>
       </div>
     </div>
   `;
@@ -377,7 +379,10 @@ function initBanner() {
 // ============================================
 // INIT
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // MUST initialise db before any other db call
+  await db.init();
+
   initBanner();
 
   // Homepage grids

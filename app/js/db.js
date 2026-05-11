@@ -134,8 +134,27 @@ class KBDatabase {
   async logout() {
     await supabase.auth.signOut();
     this._currentUser = null;
-    this._cartCache = JSON.parse(localStorage.getItem('kb_cart') || '[]');
-    this._wishlistCache = JSON.parse(localStorage.getItem('kb_wishlist') || '[]');
+    // Fix #18: fully clear localStorage on logout — don't carry over old guest data
+    this._cartCache = [];
+    this._wishlistCache = [];
+    localStorage.removeItem('kb_cart');
+    localStorage.removeItem('kb_wishlist');
+    this._initialized = false; // Force re-init on next page load
+  }
+
+  // ---- FORGOT / RESET PASSWORD ----
+  async requestPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/auth.html'
+    });
+    if (error) return { success: false, message: error.message };
+    return { success: true };
+  }
+
+  async updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { success: false, message: error.message };
+    return { success: true };
   }
 
   // ---- CART (cache-first, async-write) ----
@@ -152,20 +171,22 @@ class KBDatabase {
 
   addToCart(productId, size, color, quantity = 1) {
     const existing = this._cartCache.findIndex(item => item.productId === productId && item.size === size && item.color === color);
+    let promise = Promise.resolve();
     if (existing > -1) {
       this._cartCache[existing].quantity += quantity;
       if (this._currentUser && this._cartCache[existing]._dbId) {
-        supabase.from('cart_items').update({ quantity: this._cartCache[existing].quantity }).eq('id', this._cartCache[existing]._dbId).then();
+        promise = supabase.from('cart_items').update({ quantity: this._cartCache[existing].quantity }).eq('id', this._cartCache[existing]._dbId).then();
       }
     } else {
       const newItem = { productId, size, color, quantity };
       this._cartCache.push(newItem);
       if (this._currentUser) {
-        supabase.from('cart_items').insert({ user_id: this._currentUser.id, product_id: productId, size, color, quantity })
+        promise = supabase.from('cart_items').insert({ user_id: this._currentUser.id, product_id: productId, size, color, quantity })
           .select().single().then(({ data }) => { if (data) newItem._dbId = data.id; });
       }
     }
     if (!this._currentUser) localStorage.setItem('kb_cart', JSON.stringify(this._cartCache));
+    return promise;
   }
 
   updateCartQuantity(index, newQuantity) {
@@ -222,15 +243,23 @@ class KBDatabase {
 
   // ---- ORDERS ----
   async addOrder(orderData, status = 'pending_payment') {
-    const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    // Fix #9: timestamp + random suffix prevents collisions
+    const orderId = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    // Fix #12: ensure address is stored inside customer_info
+    const customerInfo = {
+      name: orderData.customer.name,
+      email: orderData.customer.email,
+      phone: orderData.customer.phone,
+      address: orderData.customer.address || ''
+    };
     const { error } = await supabase.from('orders').insert({
       id: orderId, user_id: this._currentUser?.id || null, status,
       subtotal: orderData.subtotal, discount_amount: orderData.discount,
       delivery_fee: orderData.deliveryFee, total: orderData.total,
       payment_method: orderData.paymentMethod || 'paystack',
-      customer_info: orderData.customer
+      customer_info: customerInfo
     });
-    if (error) console.error('[DB] Order insert error:', error);
+    if (error) { console.error('[DB] Order insert error:', error); return null; }
 
     // Insert order items
     const items = (orderData.items || []).map(item => ({
@@ -242,6 +271,20 @@ class KBDatabase {
     }
 
     return { ...orderData, id: orderId, date: new Date().toISOString(), status };
+  }
+
+  // Fix #13: save payment reference after successful payment
+  async savePaymentRef(orderId, ref) {
+    const { error } = await supabase.from('orders').update({ payment_ref: ref }).eq('id', orderId);
+    if (error) console.error('[DB] Payment ref save error:', error);
+    return !error;
+  }
+
+  // Fix #3: proper deleteOrder method so admin can call db.deleteOrder()
+  async deleteOrder(orderId) {
+    const { error } = await supabase.from('orders').delete().eq('id', orderId);
+    if (error) { console.error('[DB] Delete order error:', error); return false; }
+    return true;
   }
 
   async updateOrderStatus(orderId, newStatus) {
@@ -256,6 +299,18 @@ class KBDatabase {
       return true;
     }
     return false;
+  }
+
+  // Fix #7: validate promo codes against the database, not client-side hardcoded strings
+  async validatePromoCode(code) {
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('discount_percent')
+      .eq('code', code.toUpperCase().trim())
+      .eq('is_active', true)
+      .single();
+    if (error || !data) return { valid: false, discount: 0 };
+    return { valid: true, discount: data.discount_percent };
   }
 
   async getOrders() {
@@ -376,14 +431,38 @@ class KBDatabase {
 
   async addReview(productId, rating, body) {
     if (!this._currentUser) return { success: false, message: 'You must be logged in to leave a review.' };
+
+    // Fix #8: check if user has a delivered order containing this product
+    const userOrders = await this.getUserOrders();
+    const hasBought = userOrders.some(o =>
+      o.status === 'Delivered' &&
+      o.items.some(i => i.productId === productId)
+    );
+
     const { error } = await supabase.from('reviews').insert({
       product_id: productId,
       user_id: this._currentUser.id,
       rating,
       body,
-      verified_purchase: false
+      verified_purchase: hasBought  // Fix #8: set true if they actually purchased
     });
     if (error) return { success: false, message: error.message };
+
+    // Fix #15: recalculate and update the product's live rating and review count
+    const { data: allReviews } = await supabase.from('reviews').select('rating').eq('product_id', productId);
+    if (allReviews && allReviews.length > 0) {
+      const avgRating = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length;
+      await supabase.from('products').update({
+        rating: Math.round(avgRating * 10) / 10,
+        reviews: allReviews.length
+      }).eq('id', productId);
+      // Update local cache too
+      const idx = this._productsCache?.findIndex(p => p.id === productId);
+      if (idx > -1) {
+        this._productsCache[idx].rating = Math.round(avgRating * 10) / 10;
+        this._productsCache[idx].reviews = allReviews.length;
+      }
+    }
     return { success: true };
   }
 

@@ -18,7 +18,7 @@ function createProductCardHTML(product) {
 
   return `
     <div class="product-card" data-product-id="${product.id}">
-      <div class="product-card-img" style="position:relative;">
+      <div class="product-card-img">
         ${outOfStockLabel}
         <img src="${product.images[0]}" alt="${product.name}" loading="lazy" style="${imgStyle}" />
         <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" aria-label="Add to wishlist" style="z-index:3;">
@@ -30,7 +30,6 @@ function createProductCardHTML(product) {
         <div class="product-card-price" style="margin-top: 0;">
           <span class="price-current">$${product.price}</span>
           ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-          ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
         </div>
         <div class="product-card-rating" style="margin-top: 0; display: flex; align-items: center; gap: 4px;">
           <span class="stars" style="color: #FFB800;">★</span>
@@ -214,7 +213,7 @@ function renderGrid() {
   // Update count
   const countEl = document.getElementById('resultCount');
   const total = filteredProducts.length;
-  countEl.textContent = `Showing ${Math.min(start + 1, total)}-${Math.min(end, total)} of ${total} Products`;
+  countEl.textContent = `Showing ${Math.min(start + 1, total)}-${Math.min(end, total)} of ${total}`;
 }
 
 function bindCardEvents(container) {
@@ -320,6 +319,52 @@ function renderCartDrawerCategory() {
       updateBadge();
     });
   });
+
+  // === FAVOURITES SECTION ===
+  const wishlist = db.getWishlist();
+  let wishlistSection = document.getElementById('drawerWishlist');
+  if (!wishlistSection) {
+    wishlistSection = document.createElement('div');
+    wishlistSection.id = 'drawerWishlist';
+    container.after(wishlistSection);
+  }
+
+  if (wishlist && wishlist.length > 0) {
+    const favItems = wishlist.map(id => db.getProductById(id)).filter(Boolean);
+    wishlistSection.innerHTML = `
+      <div class="drawer-fav-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF3333" stroke="#FF3333" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span>Saved Items</span>
+      </div>
+      <div class="drawer-fav-list">
+        ${favItems.map(p => `
+          <div class="drawer-fav-item" data-product-id="${p.id}">
+            <img src="${p.images[0]}" alt="${p.name}" class="drawer-fav-img" />
+            <div class="drawer-fav-info">
+              <div class="drawer-fav-name">${p.name}</div>
+              <div class="drawer-fav-price">$${p.price}</div>
+            </div>
+            <button class="drawer-fav-remove" data-id="${p.id}" aria-label="Remove from saved">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wishlistSection.querySelectorAll('.drawer-fav-item').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.drawer-fav-remove')) return;
+        window.location.href = `/product.html?id=${row.dataset.productId}`;
+      });
+    });
+    wishlistSection.querySelectorAll('.drawer-fav-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        db.toggleWishlist(parseInt(btn.dataset.id));
+        renderCartDrawerCategory();
+      });
+    });
+  } else {
+    wishlistSection.innerHTML = '';
+  }
 }
 
 function updateBadge() {

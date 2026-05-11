@@ -40,7 +40,6 @@ function createCardHTML(product) {
       <div class="product-card-price">
         <span class="price-current">$${product.price}</span>
         ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-        ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
       </div>
       ${product.inStock !== false ? `<button class="buy-now-btn" data-product-id="${product.id}" style="width:100%; margin-top:12px; padding:10px; background:var(--black); color:var(--white); border:none; border-radius:4px; font-weight:600; cursor:pointer; font-family:var(--font-body); transition: opacity 0.3s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Buy Now</button>` : ''}
     </div>
@@ -165,19 +164,19 @@ function renderCart() {
         <form id="checkoutForm">
           <div class="form-group">
             <label>Full Name</label>
-            <input type="text" id="custName" required value="Test User" placeholder="Enter your full name">
+            <input type="text" id="custName" required placeholder="Enter your full name">
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" id="custEmail" required value="test@kb.ent" placeholder="Enter your email">
+            <input type="email" id="custEmail" required placeholder="Enter your email">
           </div>
           <div class="form-group">
             <label>Phone Number</label>
-            <input type="tel" id="custPhone" required value="0241234567" placeholder="e.g. 024xxxxxxx">
+            <input type="tel" id="custPhone" required placeholder="e.g. 024xxxxxxx">
           </div>
           <div class="form-group">
             <label>Delivery Address</label>
-            <input type="text" id="custAddress" required value="123 Test Street, Accra" placeholder="Enter your delivery address">
+            <input type="text" id="custAddress" required placeholder="Enter your delivery address">
           </div>
           <button type="submit" class="checkout-btn" style="margin-top:24px;">
             Pay $${total} with Paystack
@@ -222,19 +221,22 @@ function bindCartEvents() {
   const promoInput = document.getElementById('promoCode');
   const subtotal = db.getCartTotal(); // Re-eval to check minimum balance if we want.
 
-  applyBtn?.addEventListener('click', () => {
-    const code = promoInput.value.trim().toUpperCase();
-    if (code === 'KBFIRST') {
-      discountPercent = 20;
+  applyBtn?.addEventListener('click', async () => {
+    const code = promoInput.value.trim();
+    if (!code) return;
+    applyBtn.disabled = true;
+    applyBtn.textContent = '...';
+    // Fix #7: validate against DB, not hardcoded strings
+    const result = await db.validatePromoCode(code);
+    applyBtn.disabled = false;
+    applyBtn.textContent = 'Apply';
+    if (result.valid) {
+      discountPercent = result.discount;
       renderCart();
-      showToast('Promo code applied successfully!');
-    } else if (code === 'KBNEW10') {
-      discountPercent = 10;
-      renderCart();
-      showToast('Welcome offer code applied successfully!');
+      showToast(`Promo code applied — ${result.discount}% off!`);
     } else {
       discountPercent = 0;
-      showToast('Invalid promo code');
+      showToast('Invalid or expired promo code.');
     }
   });
 
@@ -338,6 +340,8 @@ function bindCartEvents() {
   async function handlePaymentSuccess(order, response) {
     // Update order status to paid
     await db.updateOrderStatus(order.id, 'paid');
+    // Fix #13: save payment reference for reconciliation
+    await db.savePaymentRef(order.id, response.reference);
 
     // NOW it is safe to clear the cart — payment is confirmed
     db.clearCart();

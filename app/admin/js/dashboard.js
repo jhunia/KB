@@ -81,6 +81,12 @@ async function initDashboard() {
     });
   });
 
+  // Listeners for Order Search and Filters
+  const orderSearch = document.getElementById('orderSearchInput');
+  const orderFilter = document.getElementById('orderStatusFilter');
+  if (orderSearch) orderSearch.addEventListener('input', renderOrdersTable);
+  if (orderFilter) orderFilter.addEventListener('change', renderOrdersTable);
+
   // 3. Logout
   document.getElementById('logoutBtn').addEventListener('click', () => {
     db.logout();
@@ -345,19 +351,32 @@ function setupProductModal() {
 // ============================================
 async function renderKPIs() {
   const orders = await db.getOrders();
-  let rev = 0;
-  let active = 0;
+  let rev = 0; let pendingRev = 0; let active = 0;
 
   orders.forEach(o => {
-    // Count revenue from delivered and paid orders
-    if (o.status === 'Delivered' || o.status === 'paid') rev += o.total;
-    // Active orders: paid, processing, shipped, or pending payment
+    // Confirmed revenue: only Delivered orders
+    if (o.status === 'Delivered') rev += o.total;
+    // Pending revenue: paid/processing/shipped
+    if (['paid', 'Processing', 'Shipped'].includes(o.status)) pendingRev += o.total;
+    // Active orders count
     if (['paid', 'Processing', 'Shipped', 'pending_payment'].includes(o.status)) active++;
   });
 
   const customers = await db.getCustomers();
 
   document.getElementById('kpiRevenue').textContent = `$${rev.toFixed(2)}`;
+  // Fix #19: show pending revenue as sub-label
+  const kpiRevCard = document.getElementById('kpiRevenue').closest('.stat-card');
+  if (kpiRevCard) {
+    let pendingEl = kpiRevCard.querySelector('.pending-rev');
+    if (!pendingEl) {
+      pendingEl = document.createElement('div');
+      pendingEl.className = 'stat-card-trend pending-rev';
+      kpiRevCard.appendChild(pendingEl);
+    }
+    pendingEl.textContent = `+ $${pendingRev.toFixed(2)} pending`;
+    pendingEl.style.color = 'var(--warning)';
+  }
   document.getElementById('kpiOrders').textContent = orders.length;
   document.getElementById('kpiActive').textContent = active;
   document.getElementById('kpiCustomers').textContent = customers.length;
@@ -395,7 +414,7 @@ async function renderKPIs() {
     `).join('');
   }
 
-  const recent = [...orders].reverse().slice(0, 5);
+  const recent = [...orders].slice(0, 5);
   const tbody = document.getElementById('recentOrdersTbody');
   
   if (recent.length === 0) {
@@ -423,7 +442,23 @@ async function renderKPIs() {
 // ============================================
 async function renderOrdersTable() {
   const tbody = document.getElementById('allOrdersTbody');
-  const orders = [...await db.getOrders()].reverse();
+  let orders = await db.getOrders();
+  
+  // Apply Search
+  const searchStr = document.getElementById('orderSearchInput')?.value.toLowerCase() || '';
+  if (searchStr) {
+    orders = orders.filter(o => 
+      o.customer.name.toLowerCase().includes(searchStr) || 
+      o.customer.email.toLowerCase().includes(searchStr) ||
+      o.id.toString().includes(searchStr)
+    );
+  }
+
+  // Apply Status Filter
+  const statusFilter = document.getElementById('orderStatusFilter')?.value || 'all';
+  if (statusFilter !== 'all') {
+    orders = orders.filter(o => o.status === statusFilter);
+  }
 
   if (orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-sub);">No orders found</td></tr>`;
@@ -570,9 +605,12 @@ async function showOrderDetail(orderId) {
     </div>
     ${order.status === 'Cancellation Requested' ? `
       <div style="margin-top:24px; display:flex; justify-content:flex-end;">
-        <button class="action-btn" style="background:var(--danger); color:#fff; border:none;" onclick="approveCancellation('${order.id}'); closeOrderDetailModal(); renderOrdersTable(); renderKPIs();">Approve Cancellation</button>
+        <button class="action-btn" style="background:var(--danger); color:#fff; border:none;" onclick="approveCancellation('${order.id}');">Approve Cancellation</button>
       </div>
     ` : ''}
+    <div style="margin-top:20px; display:flex; gap:12px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 16px;">
+      <button class="action-btn" style="background:var(--bg-main); color:var(--danger); border-color:#FCA5A5;" onclick="deleteOrder('${order.id}');">Delete Order</button>
+    </div>
   `;
 
   modal.style.display = 'flex';
@@ -707,6 +745,23 @@ window.deleteProduct = (id) => {
 window.approveCancellation = async (orderId) => {
   if (confirm('Are you sure you want to approve this cancellation and process the refund?')) {
     await db.updateOrderStatus(orderId, 'Cancelled');
+    closeOrderDetailModal();
+    renderOrdersTable();
+    renderKPIs();
+  }
+};
+
+window.deleteOrder = async (orderId) => {
+  if (confirm('Are you sure you want to completely delete this order? This action cannot be undone.')) {
+    // Fix #3: use the proper db.deleteOrder() method instead of calling db.supabase
+    const success = await db.deleteOrder(orderId);
+    if (success) {
+      closeOrderDetailModal();
+      renderOrdersTable();
+      renderKPIs();
+    } else {
+      alert('Failed to delete order. You may need to add a DELETE RLS policy in Supabase. See console for details.');
+    }
   }
 };
 

@@ -46,9 +46,39 @@
             <input type="password" id="loginPassword" placeholder="••••••••" required />
           </div>
 
-          <button type="submit" class="auth-btn">Log In</button>
-          
+          <button type="submit" class="auth-btn" id="loginSubmitBtn">Log In</button>
+          <p style="text-align:center; margin-top:16px; font-size:14px; color:var(--gray-600);">
+            <a href="#" id="forgotPasswordLink" style="color:var(--black); font-weight:600; text-decoration:underline;">Forgot your password?</a>
+          </p>
+        </form>
 
+        <!-- Forgot Password Form (Step 1: Request reset email) -->
+        <form id="forgotForm" class="auth-form">
+          <h2 class="auth-title">Reset Password</h2>
+          <p class="auth-desc">Enter your email address and we'll send you a link to reset your password.</p>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="forgotEmail" placeholder="you@example.com" required />
+          </div>
+          <button type="submit" class="auth-btn" id="forgotSubmitBtn">Send Reset Link</button>
+          <p style="text-align:center; margin-top:16px; font-size:14px; color:var(--gray-600);">
+            <a href="#" id="backToLoginLink" style="color:var(--black); font-weight:600;">← Back to Login</a>
+          </p>
+        </form>
+
+        <!-- New Password Form (Step 2: Set new password after clicking email link) -->
+        <form id="resetForm" class="auth-form">
+          <h2 class="auth-title">Set New Password</h2>
+          <p class="auth-desc">Choose a strong new password for your KB.ENT account.</p>
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" id="newPassword" placeholder="At least 6 characters" required minlength="6" />
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" id="confirmPassword" placeholder="Repeat your new password" required minlength="6" />
+          </div>
+          <button type="submit" class="auth-btn" id="resetSubmitBtn">Update Password</button>
         </form>
 
         <!-- Sign Up Form -->

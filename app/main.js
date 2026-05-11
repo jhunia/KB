@@ -41,7 +41,6 @@ window.createProductCardHTML = function(product) {
         <div class="product-card-price" style="margin-top: 0;">
           <span class="price-current">$${product.price}</span>
           ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-          ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
         </div>
         <div class="product-card-rating" style="margin-top: 0; display: flex; align-items: center; gap: 4px;">
           <span class="stars" style="color: #FFB800;">★</span>

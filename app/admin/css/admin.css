@@ -452,7 +452,7 @@ select.status-select:focus {
   min-height: 32px;
 }
 
-#addProductForm {
+#productForm {
   padding: 24px;
 }
 
@@ -735,7 +735,7 @@ select.status-select:focus {
     font-size: 16px;
   }
 
-  #addProductForm {
+  #productForm {
     padding: 16px;
   }
 

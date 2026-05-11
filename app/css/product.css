@@ -15,8 +15,8 @@
 /* Product Detail Layout */
 .product-detail {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: 45% 1fr;
+  gap: 48px;
   padding-bottom: 40px;
 }
 
@@ -488,6 +488,8 @@
 
   .product-gallery {
     flex-direction: column-reverse;
+    max-width: 400px;
+    margin: 0 auto;
   }
 
   .gallery-thumbs {

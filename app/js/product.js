@@ -26,7 +26,7 @@ window.createProductCardHTML = function(product) {
 
   return `
     <div class="product-card" data-product-id="${product.id}" style="cursor:pointer;">
-      <div class="product-card-img" style="position:relative;">
+      <div class="product-card-img">
         ${outOfStockLabel}
         <img src="${product.images[0]}" alt="${product.name}" loading="lazy" style="${imgStyle}" />
         <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" aria-label="Add to wishlist" style="z-index:3;">
@@ -41,7 +41,6 @@ window.createProductCardHTML = function(product) {
       <div class="product-card-price">
         <span class="price-current">$${product.price}</span>
         ${product.originalPrice ? `<span class="price-original">$${product.originalPrice}</span>` : ''}
-        ${product.discount ? `<span class="discount-badge">-${product.discount}%</span>` : ''}
       </div>
     </div>
   `;
@@ -153,7 +152,6 @@ function renderProductInfo() {
       <div class="product-price-row">
         <span class="product-price">$${currentProduct.price}</span>
         ${currentProduct.originalPrice ? `<span class="product-original-price">$${currentProduct.originalPrice}</span>` : ''}
-        ${currentProduct.discount ? `<span class="product-discount-badge">-${currentProduct.discount}%</span>` : ''}
       </div>
       <p class="product-desc">${currentProduct.description}</p>
       
@@ -273,8 +271,8 @@ function renderProductInfo() {
   // Buy Now — add to cart then go to checkout
   const buyNowBtn = document.getElementById('buyNowBtn');
   if (buyNowBtn) {
-    buyNowBtn.addEventListener('click', () => {
-      db.addToCart(currentProduct.id, selectedSize, selectedColor, quantity);
+    buyNowBtn.addEventListener('click', async () => {
+      await db.addToCart(currentProduct.id, selectedSize, selectedColor, quantity);
       window.location.href = '/cart.html';
     });
   }
@@ -535,15 +533,61 @@ function renderCartDrawerSpecific() {
     return `<div class="cart-drawer-item"><div class="cart-drawer-item-img"><img src="${p.images[0]}" alt="${p.name}" /></div><div class="cart-drawer-item-info"><div class="cart-drawer-item-name">${p.name}</div><div class="cart-drawer-item-meta">Size: ${item.size} ${item.color ? '· Color' : ''}</div><div class="cart-drawer-item-bottom"><span class="cart-drawer-item-price">$${p.price * item.quantity}</span><div class="qty-control"><button data-action="dec" data-index="${i}">−</button><span>${item.quantity}</span><button data-action="inc" data-index="${i}">+</button></div></div></div></div>`;
   }).join('');
   totalEl.textContent = `$${db.getCartTotal()}`;
-  container.querySelectorAll('.qty-control button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.index);
-      const c = db.getCart();
-      db.updateCartQuantity(idx, btn.dataset.action === 'inc' ? c[idx].quantity + 1 : c[idx].quantity - 1);
-      renderCartDrawerSpecific();
-      updateBadge();
+    container.querySelectorAll('.qty-control button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.index);
+        const c = db.getCart();
+        db.updateCartQuantity(idx, btn.dataset.action === 'inc' ? c[idx].quantity + 1 : c[idx].quantity - 1);
+        renderCartDrawerSpecific();
+        updateBadge();
+      });
     });
-  });
+
+  // === FAVOURITES SECTION ===
+  const wishlist = db.getWishlist();
+  let wishlistSection = document.getElementById('drawerWishlist');
+  if (!wishlistSection) {
+    wishlistSection = document.createElement('div');
+    wishlistSection.id = 'drawerWishlist';
+    container.after(wishlistSection);
+  }
+
+  if (wishlist && wishlist.length > 0) {
+    const favItems = wishlist.map(id => db.getProductById(id)).filter(Boolean);
+    wishlistSection.innerHTML = `
+      <div class="drawer-fav-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF3333" stroke="#FF3333" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span>Saved Items</span>
+      </div>
+      <div class="drawer-fav-list">
+        ${favItems.map(p => `
+          <div class="drawer-fav-item" data-product-id="${p.id}">
+            <img src="${p.images[0]}" alt="${p.name}" class="drawer-fav-img" />
+            <div class="drawer-fav-info">
+              <div class="drawer-fav-name">${p.name}</div>
+              <div class="drawer-fav-price">$${p.price}</div>
+            </div>
+            <button class="drawer-fav-remove" data-id="${p.id}" aria-label="Remove from saved">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wishlistSection.querySelectorAll('.drawer-fav-item').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.drawer-fav-remove')) return;
+        window.location.href = `/product.html?id=${row.dataset.productId}`;
+      });
+    });
+    wishlistSection.querySelectorAll('.drawer-fav-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        db.toggleWishlist(parseInt(btn.dataset.id));
+        renderCartDrawerSpecific();
+      });
+    });
+  } else {
+    wishlistSection.innerHTML = '';
+  }
 }
 
 function updateBadge() {

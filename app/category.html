@@ -22,15 +22,7 @@
       <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu"><span></span><span></span><span></span></button>
       <a href="/" class="logo">KB.ENT</a>
       <nav class="nav-links" id="navLinks">
-        <div class="nav-dropdown">
-          <a href="/category.html" class="nav-dropdown-toggle">Shop <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></a>
-          <div class="nav-dropdown-menu">
-            <a href="/category.html?gender=Men">Men</a>
-            <a href="/coming-soon.html?section=Women">Women</a>
-            <a href="/coming-soon.html?section=Kids">Kids</a>
-            <a href="/category.html?gender=Uni-sex">Uni-sex</a>
-          </div>
-        </div>
+        <a href="/category.html">Shop</a>
         <a href="/category.html?filter=sale">On Sale</a>
         <a href="/category.html?filter=new">New Arrivals</a>
         <a href="/category.html?filter=brands">Brands</a>
@@ -63,8 +55,15 @@
   <main>
     <!-- Breadcrumb -->
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/">Home</a> <span>›</span> <span id="breadcrumbCurrent">All Products</span>
+      <div class="breadcrumb" style="display:flex; justify-content:space-between; align-items:center;">
+        <div><a href="/">Home</a> <span>›</span> <span id="breadcrumbCurrent">All Products</span></div>
+        <select id="sortSelect" class="sort-select" style="padding: 6px 12px; font-size: 13px;">
+          <option value="popular">Most Popular</option>
+          <option value="newest">Newest</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+          <option value="rating">Highest Rated</option>
+        </select>
       </div>
     </div>
 
@@ -144,20 +143,13 @@
       <div class="category-main">
         <div class="category-top-bar">
           <div class="category-info">
-            <span id="resultCount">Showing 1-9 of 18 Products</span>
+            <span id="resultCount">Showing 1-9 of 18</span>
           </div>
           <div class="category-controls">
             <button class="mobile-filter-btn" id="filterToggle">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
               Filters
             </button>
-            <select id="sortSelect" class="sort-select">
-              <option value="popular">Most Popular</option>
-              <option value="newest">Newest</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="rating">Highest Rated</option>
-            </select>
           </div>
         </div>
 

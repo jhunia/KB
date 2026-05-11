@@ -124,8 +124,21 @@
     <!-- 2. Orders View -->
     <div class="page-container" id="view-orders">
       <div class="table-wrapper">
-        <div class="table-header">
+        <div class="table-header" style="flex-wrap: wrap; gap: 16px;">
           <h2>All Orders</h2>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <input type="text" id="orderSearchInput" placeholder="Search by name/email..." style="padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; width: 200px;">
+            <select id="orderStatusFilter" class="status-select">
+              <option value="all">All Statuses</option>
+              <option value="pending_payment">Pending Payment</option>
+              <option value="paid">Paid</option>
+              <option value="Processing">Processing</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancellation Requested">Cancellation Requested</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
         </div>
         <table>
           <thead>

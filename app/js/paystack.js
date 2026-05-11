@@ -2,7 +2,7 @@
    Paystack Payment Integration
    ============================================ */
 
-const PAYSTACK_PUBLIC_KEY = 'pk_test_99f3fde1f23de651b85931ebbe495660abe52c6b';
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_KEY;
 
 // Auto-enable demo mode for non-localhost deployments (test keys require domain whitelisting)
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

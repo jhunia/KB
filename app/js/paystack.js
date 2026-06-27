@@ -4,10 +4,6 @@
 
 const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_KEY;
 
-// Auto-enable demo mode for non-localhost deployments (test keys require domain whitelisting)
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const DEMO_MODE = !isLocalhost;
-
 /**
  * Returns true if the Paystack inline library is already on the page.
  */
@@ -63,19 +59,6 @@ export function loadPaystackScript(maxRetries = 3) {
  * @param {Function} onClose   - Called when the user dismisses the popup without paying
  */
 export function initPaystackPayment(order, onSuccess, onClose) {
-  // Auto-simulate payment in demo mode (non-localhost deployments)
-  if (DEMO_MODE) {
-    console.log('[Paystack] Demo mode enabled. Simulating successful payment.');
-    setTimeout(() => {
-      onSuccess({
-        reference: "demo_" + order.id,
-        transactionId: "demo_trans_" + Date.now(),
-        status: 'success'
-      });
-    }, 1000);
-    return;
-  }
-
   if (!isPaystackLoaded()) {
     console.error('[Paystack] PaystackPop is not available. Make sure loadPaystackScript() was awaited first.');
     alert('Payment gateway failed to load. Please refresh and try again.');

@@ -343,6 +343,20 @@ function bindCartEvents() {
     // Fix #13: save payment reference for reconciliation
     await db.savePaymentRef(order.id, response.reference);
 
+    // Send order confirmation email
+    try {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-order-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ orderId: order.id })
+      });
+    } catch (err) {
+      console.error('[Cart] Failed to send order confirmation email:', err);
+    }
+
     // NOW it is safe to clear the cart — payment is confirmed
     db.clearCart();
     updateBadge();

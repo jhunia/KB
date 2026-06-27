@@ -289,6 +289,23 @@ class KBDatabase {
 
   async updateOrderStatus(orderId, newStatus) {
     const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    
+    // Send shipping status email for relevant status changes
+    if (!error && ['shipped', 'delivered', 'processing'].includes(newStatus.toLowerCase())) {
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-shipping-update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ orderId, newStatus })
+        });
+      } catch (err) {
+        console.error('[DB] Failed to send shipping update email:', err);
+      }
+    }
+    
     return !error;
   }
 

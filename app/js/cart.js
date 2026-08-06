@@ -2,7 +2,8 @@ import { db, escapeHTML } from './db.js';
 import { loadPaystackScript, initPaystackPayment } from './paystack.js';
 
 let discountPercent = 0;
-const DELIVERY_FEE = 15;
+let appliedPromoCode = ''; // Track which promo was applied so we can record its use on payment
+const DELIVERY_FEE = 0; // Delivery is quoted per order — admin calls customer to confirm fee
 let currentOrder = null; // Store order during payment process
 
 // ============================================
@@ -27,7 +28,7 @@ function createCardHTML(product) {
     <div class="product-card" data-product-id="${product.id}" style="cursor:pointer;">
       <div class="product-card-img" style="position:relative;">
         ${outBadge}
-        <img src="${product.images[0]}" alt="${product.name}" loading="lazy" style="${imgStyle}" />
+        <img src="${product.images[0]}" alt="${product.name}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" style="${imgStyle}" />
         <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" aria-label="Add to wishlist" style="z-index:3;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="${isInWishlist ? '#FF3333' : 'none'}" stroke="${isInWishlist ? '#FF3333' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
         </button>
@@ -91,7 +92,7 @@ function renderCart() {
     if (!p) return '';
     return `
       <div class="cart-item">
-        <div class="cart-item-img"><img src="${p.images[0]}" alt="${p.name}"></div>
+        <div class="cart-item-img"><img src="${p.images[0]}" alt="${p.name}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')"></div>
         <div class="cart-item-details">
           <div>
             <div class="cart-item-title-row">
@@ -133,7 +134,7 @@ function renderCart() {
       </div>
       <div class="summary-row">
         <span class="label">Delivery Fee</span>
-        <span>$${DELIVERY_FEE}</span>
+        <span style="color:var(--gray-600); font-style:italic;">Quoted on call</span>
       </div>
       <div class="summary-row total">
         <span class="label">Total</span>
@@ -149,6 +150,9 @@ function renderCart() {
         Proceed to Checkout
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
+      <p style="text-align:center; font-size:12px; color:var(--gray-500); margin-top:12px; line-height:1.5;">
+        🚚 You pay for your items now. We'll call you to confirm the delivery fee based on your location.
+      </p>
     </div>
 
     <!-- Paystack Modal -->
@@ -179,8 +183,11 @@ function renderCart() {
             <input type="text" id="custAddress" required placeholder="Enter your delivery address">
           </div>
           <button type="submit" class="checkout-btn" style="margin-top:24px;">
-            Pay $${total} with Paystack
+            Pay $${total} (Products Only)
           </button>
+          <p style="text-align:center;font-size:11px;color:var(--gray-500);margin-top:8px;">
+            Delivery fee confirmed separately after your order is placed.
+          </p>
         </form>
       </div>
     </div>
@@ -226,17 +233,18 @@ function bindCartEvents() {
     if (!code) return;
     applyBtn.disabled = true;
     applyBtn.textContent = '...';
-    // Fix #7: validate against DB, not hardcoded strings
     const result = await db.validatePromoCode(code);
     applyBtn.disabled = false;
     applyBtn.textContent = 'Apply';
     if (result.valid) {
       discountPercent = result.discount;
+      appliedPromoCode = code.toUpperCase().trim(); // remember for recordPromoUse
       renderCart();
       showToast(`Promo code applied — ${result.discount}% off!`);
     } else {
       discountPercent = 0;
-      showToast('Invalid or expired promo code.');
+      appliedPromoCode = '';
+      showToast(result.reason || 'Invalid or expired promo code.');
     }
   });
 
@@ -338,10 +346,27 @@ function bindCartEvents() {
 
   // Handle successful payment
   async function handlePaymentSuccess(order, response) {
-    // Update order status to paid
-    await db.updateOrderStatus(order.id, 'paid');
-    // Fix #13: save payment reference for reconciliation
-    await db.savePaymentRef(order.id, response.reference);
+    if (response.reference.startsWith('sim_')) {
+      // Simulated fallback test payment
+      await db.updateOrderStatus(order.id, 'processing');
+      await db.savePaymentRef(order.id, response.reference);
+    } else {
+      // Show loading state while waiting for the secure webhook to process
+      let verified = false;
+      // Poll every 1.5 seconds for up to 15 seconds
+      for (let i = 0; i < 10; i++) {
+        const checkOrder = await db.getOrderById(order.id);
+        if (checkOrder && checkOrder.status === 'processing') {
+          verified = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+      
+      if (!verified) {
+        alert("Payment verification is taking longer than expected. You will receive an email receipt once confirmed. Do not pay again.");
+      }
+    }
 
     // Send order confirmation email
     try {
@@ -357,7 +382,13 @@ function bindCartEvents() {
       console.error('[Cart] Failed to send order confirmation email:', err);
     }
 
-    // NOW it is safe to clear the cart — payment is confirmed
+    // Record promo usage so it cannot be reused by the same email (or aliases)
+    if (appliedPromoCode) {
+      await db.recordPromoUse(appliedPromoCode, order.customer.email);
+      appliedPromoCode = '';
+    }
+
+    // NOW it is safe to clear the cart — payment is confirmed (or assumed confirmed if webhook delayed)
     db.clearCart();
     updateBadge();
     
@@ -520,7 +551,7 @@ function renderStillInterested() {
   container.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.wishlist-btn') || e.target.closest('.buy-now-btn')) return;
-      window.location.href = `/product.html?id=${card.dataset.productId}`;
+      window.location.href = `/p/${card.dataset.productId}.html`;
     });
   });
 

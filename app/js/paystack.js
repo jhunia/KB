@@ -112,18 +112,8 @@ export function initPaystackPayment(order, onSuccess, onClose) {
   try {
     handler.openIframe();
   } catch (e) {
-    console.error("[Paystack] Failed to open iframe.", e);
-    // FALLBACK SIMULATION: In case the network blocks Paystack or the test key is invalid
-    const simulate = confirm("Paystack failed to load (likely due to a test key issue).\n\nWould you like to simulate a successful payment for testing purposes?");
-    if (simulate) {
-       console.log("[Paystack] Simulating successful payment...");
-       onSuccess({
-          reference: "sim_" + order.id,
-          transactionId: "sim_trans_" + Date.now(),
-          status: 'success'
-       });
-    } else {
-       onClose();
-    }
+    console.error('[Paystack] Failed to open iframe.', e);
+    alert('Payment gateway failed to open. Please check your connection and try again.');
+    onClose();
   }
 }

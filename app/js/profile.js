@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (!product) return '';
           return `
             <div class="order-item">
-              <img src="${product.images[0]}" alt="${product.name}" class="order-item-img" />
+              <img src="${product.images[0]}" alt="${product.name}" loading="lazy" class="order-item-img skeleton" onload="this.classList.remove('skeleton')" />
               <div class="order-item-info">
                 <div class="order-item-name">${product.name}</div>
                 <div class="order-item-meta">Size: ${item.size} | Color: ${item.color} | Qty: ${item.quantity}</div>

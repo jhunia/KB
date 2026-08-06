@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     errorMsg.style.display = 'none';
 
     const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
+    const password = document.getElementById('password').value;
 
     errorMsg.textContent = 'Logging in…';
     errorMsg.style.display = 'block';

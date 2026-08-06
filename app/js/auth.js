@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email    = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
+    const password = document.getElementById('loginPassword').value;
     const btn      = document.getElementById('loginSubmitBtn');
 
     btn.disabled = true;
@@ -150,7 +150,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.textContent = 'Send Reset Link';
 
     if (res.success) {
-      showAlert('✅ Check your email! A password reset link has been sent. It may take a minute to arrive.', 'success');
+      showAlert('✅ Reset link sent! Check your inbox (and spam folder). It may take a minute to arrive.', 'success');
+      // Disable the button so the user can't spam the request
+      btn.disabled = true;
+      btn.textContent = 'Email Sent';
     } else {
       showAlert(res.message);
     }
@@ -181,11 +184,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.textContent = 'Update Password';
 
     if (res.success) {
-      showAlert('✅ Password updated successfully! Redirecting to your profile…', 'success');
-      // Sign out and redirect so session is clean
+      showAlert('✅ Password updated! Signing you out for a clean session…', 'success');
+      btn.disabled = true;
+      // Sign out cleanly, then replace history so back button doesn't return to reset form
       setTimeout(async () => {
         await db.logout();
-        window.location.href = '/auth.html';
+        window.location.replace('/auth.html');
       }, 2000);
     } else {
       showAlert(res.message);

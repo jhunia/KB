@@ -20,7 +20,7 @@ function createProductCardHTML(product) {
     <div class="product-card" data-product-id="${product.id}">
       <div class="product-card-img">
         ${outOfStockLabel}
-        <img src="${product.images[0]}" alt="${product.name}" loading="lazy" style="${imgStyle}" />
+        <img src="${product.images[0]}" alt="${product.name}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" style="${imgStyle}" />
         <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" aria-label="Add to wishlist" style="z-index:3;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="${isInWishlist ? '#FF3333' : 'none'}" stroke="${isInWishlist ? '#FF3333' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
         </button>
@@ -184,7 +184,7 @@ function renderBrandsView() {
     return `
       <a href="/category.html?brand=${encodeURIComponent(brandStr)}" class="brand-card">
         <div style="width: 80px; height: 80px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; border: 1px solid var(--border); overflow: hidden; padding: 10px;">
-          <img src="/assets/images/brands/${brandFileName}" alt="${brandStr}" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <img src="/assets/images/brands/${brandFileName}" alt="${brandStr}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
           <span style="display:none; font-weight: bold; font-size: 28px; color: #ccc; align-items: center; justify-content: center; width: 100%; height: 100%;">${brandStr.charAt(0).toUpperCase()}</span>
         </div>
         <h3 class="brand-card-title">${brandStr}</h3>
@@ -220,7 +220,7 @@ function bindCardEvents(container) {
   container.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.wishlist-btn')) return;
-      window.location.href = `/product.html?id=${card.dataset.productId}`;
+      window.location.href = `/p/${card.dataset.productId}.html`;
     });
   });
   container.querySelectorAll('.wishlist-btn').forEach(btn => {
@@ -307,7 +307,7 @@ function renderCartDrawerCategory() {
   container.innerHTML = cart.map((item, i) => {
     const p = db.getProductById(item.productId);
     if (!p) return '';
-    return `<div class="cart-drawer-item"><div class="cart-drawer-item-img"><img src="${p.images[0]}" alt="${p.name}" /></div><div class="cart-drawer-item-info"><div class="cart-drawer-item-name">${p.name}</div><div class="cart-drawer-item-meta">Size: ${item.size}</div><div class="cart-drawer-item-bottom"><span class="cart-drawer-item-price">$${p.price * item.quantity}</span><div class="qty-control"><button data-action="dec" data-index="${i}">−</button><span>${item.quantity}</span><button data-action="inc" data-index="${i}">+</button></div></div></div></div>`;
+    return `<div class="cart-drawer-item"><div class="cart-drawer-item-img"><img src="${p.images[0]}" alt="${p.name}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" /></div><div class="cart-drawer-item-info"><div class="cart-drawer-item-name">${p.name}</div><div class="cart-drawer-item-meta">Size: ${item.size}</div><div class="cart-drawer-item-bottom"><span class="cart-drawer-item-price">$${p.price * item.quantity}</span><div class="qty-control"><button data-action="dec" data-index="${i}">−</button><span>${item.quantity}</span><button data-action="inc" data-index="${i}">+</button></div></div></div></div>`;
   }).join('');
   totalEl.textContent = `$${db.getCartTotal()}`;
   container.querySelectorAll('.qty-control button').forEach(btn => {
@@ -339,7 +339,7 @@ function renderCartDrawerCategory() {
       <div class="drawer-fav-list">
         ${favItems.map(p => `
           <div class="drawer-fav-item" data-product-id="${p.id}">
-            <img src="${p.images[0]}" alt="${p.name}" class="drawer-fav-img" />
+            <img src="${p.images[0]}" alt="${p.name}" loading="lazy" class="drawer-fav-img skeleton" onload="this.classList.remove('skeleton')" />
             <div class="drawer-fav-info">
               <div class="drawer-fav-name">${p.name}</div>
               <div class="drawer-fav-price">$${p.price}</div>
@@ -352,7 +352,7 @@ function renderCartDrawerCategory() {
     wishlistSection.querySelectorAll('.drawer-fav-item').forEach(row => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('.drawer-fav-remove')) return;
-        window.location.href = `/product.html?id=${row.dataset.productId}`;
+        window.location.href = `/p/${row.dataset.productId}.html`;
       });
     });
     wishlistSection.querySelectorAll('.drawer-fav-remove').forEach(btn => {

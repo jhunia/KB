@@ -7,9 +7,9 @@ import { setupCounter } from './counter.js'
 document.querySelector('#app').innerHTML = `
 <section id="center">
   <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
+    <img src="${heroImg}" class="base" width="170" height="179" loading="lazy">
+    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo" loading="lazy"/>
+    <img src="${viteLogo}" class="vite" alt="Vite logo" loading="lazy" />
   </div>
   <div>
     <h1>Get started</h1>
@@ -28,13 +28,13 @@ document.querySelector('#app').innerHTML = `
     <ul>
       <li>
         <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
+          <img class="logo" src="${viteLogo}" alt="" loading="lazy" />
           Explore Vite
         </a>
       </li>
       <li>
         <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
+          <img class="button-icon" src="${javascriptLogo}" alt="" loading="lazy">
           Learn more
         </a>
       </li>

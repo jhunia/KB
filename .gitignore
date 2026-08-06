@@ -1,2 +1,28 @@
-﻿node_modules/
+# ── Dependencies ──────────────────────────────
+node_modules/
+
+# ── Next.js build output ──────────────────────
+nextapp/.next/
+nextapp/out/
+
+# ── Environment / Secrets ─────────────────────
+# NEVER commit these — they contain API keys
+.env
+.env.local
+.env.*.local
+*.env
+
+# ── Vite / app build output ───────────────────
+app/dist/
+
+# ── OS & Editor junk ──────────────────────────
 .DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# ── Logs ─────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Supabase local dev ────────────────────────
+supabase/.temp/

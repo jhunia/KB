@@ -1,4 +1,4 @@
-import { db } from '../../js/db.js';
+import { db, escapeHTML } from '../../js/db.js';
 
 // ============================================
 // State & Routing
@@ -19,13 +19,16 @@ async function initDashboard() {
   // MUST initialise db before any other db call
   await db.init();
 
-  // 1. Auth Check
-  const user = db.getCurrentUser();
-  if (!user || user.role !== 'admin') {
-    window.location.href = '/admin/login.html';
-    return;
-  }
-  document.getElementById('adminNameDisplay').textContent = user.name;
+  // 1. Auth Check — re-validate role LIVE from Supabase, not from the stale in-memory cache.
+  // This handles the case where an admin is demoted mid-session.
+  const { supabase } = await import('../../js/supabase.js');
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) { window.location.href = '/admin/login.html'; return; }
+
+  const { data: profile } = await supabase.from('profiles').select('name, role').eq('id', authUser.id).single();
+  if (!profile || profile.role !== 'admin') { window.location.href = '/'; return; }
+
+  document.getElementById('adminNameDisplay').textContent = profile.name;
   
   // 2. Setup Routing & Mobile Menu
   const navItems = document.querySelectorAll('.nav-item');
@@ -219,7 +222,7 @@ function setupProductModal() {
   function renderImagePreviews() {
     previewContainer.innerHTML = uploadedImagesBase64.map((src, i) => `
       <div class="image-preview-item">
-        <img src="${src}">
+        <img src="${src}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')">
         <button type="button" class="image-preview-remove" onclick="removePreviewImage(${i})">✕</button>
       </div>
     `).join('');
@@ -423,11 +426,11 @@ async function renderKPIs() {
   }
 
   tbody.innerHTML = recent.map(o => `
-    <tr class="clickable-row" data-type="order" data-id="${o.id}">
-      <td>${o.customer.name}</td>
+    <tr class="clickable-row" data-type="order" data-id="${escapeHTML(o.id)}">
+      <td>${escapeHTML(o.customer.name)}</td>
       <td>${formatDate(o.date)}</td>
       <td style="font-weight:600;">$${o.total.toFixed(2)}</td>
-      <td><span class="badge ${getStatusBadgeClass(o.status)}">${o.status}</span></td>
+      <td><span class="badge ${getStatusBadgeClass(o.status)}">${escapeHTML(o.status)}</span></td>
     </tr>
   `).join('');
 
@@ -466,13 +469,13 @@ async function renderOrdersTable() {
   }
 
   tbody.innerHTML = orders.map(o => `
-    <tr class="clickable-row" data-type="order" data-id="${o.id}">
+    <tr class="clickable-row" data-type="order" data-id="${escapeHTML(o.id)}">
       <td>
-        <div style="font-weight:600;">${o.customer.name}</div>
-        <div style="font-size:12px;color:var(--text-sub);">${o.customer.email}</div>
+        <div style="font-weight:600;">${escapeHTML(o.customer.name)}</div>
+        <div style="font-size:12px;color:var(--text-sub);">${escapeHTML(o.customer.email)}</div>
       </td>
       <td style="font-weight:600;">$${o.total.toFixed(2)}</td>
-      <td><span class="badge ${getStatusBadgeClass(o.status)}">${o.status}</span></td>
+      <td><span class="badge ${getStatusBadgeClass(o.status)}">${escapeHTML(o.status)}</span></td>
     </tr>
   `).join('');
 
@@ -535,9 +538,9 @@ async function renderCustomersTable() {
   }
 
   tbody.innerHTML = customers.map(c => `
-    <tr class="clickable-row" data-type="customer" data-id="${c.email}">
-      <td style="font-weight:600;">${c.name}</td>
-      <td style="color:var(--text-sub);">${c.phone || '—'}</td>
+    <tr class="clickable-row" data-type="customer" data-id="${escapeHTML(c.email)}">
+      <td style="font-weight:600;">${escapeHTML(c.name)}</td>
+      <td style="color:var(--text-sub);">${escapeHTML(c.phone || '—')}</td>
     </tr>
   `).join('');
 
@@ -561,7 +564,7 @@ async function showOrderDetail(orderId) {
     const product = db.getProductById(item.productId);
     return `
       <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px;">
-        <img src="${product?.images[0] || ''}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
+        <img src="${product?.images[0] || ''}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">
         <div>
           <div style="font-weight:600;">${product?.name || 'Unknown Product'}</div>
           <div style="font-size:12px; color:var(--text-sub);">Size: ${item.size} | Color: ${item.color}</div>
@@ -574,16 +577,16 @@ async function showOrderDetail(orderId) {
   content.innerHTML = `
     <div style="margin-bottom:16px;">
       <div style="font-size:12px; color:var(--text-sub);">Order ID</div>
-      <div style="font-weight:600; font-size:18px;">${order.id}</div>
+      <div style="font-weight:600; font-size:18px;">${escapeHTML(order.id)}</div>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <div style="font-size:12px; color:var(--text-sub);">Customer</div>
-        <div style="font-weight:600;">${order.customer.name}</div>
+        <div style="font-weight:600;">${escapeHTML(order.customer.name)}</div>
       </div>
       <div>
         <div style="font-size:12px; color:var(--text-sub);">Status</div>
-        <span class="badge ${getStatusBadgeClass(order.status)}">${order.status}</span>
+        <span class="badge ${getStatusBadgeClass(order.status)}">${escapeHTML(order.status)}</span>
       </div>
       <div>
         <div style="font-size:12px; color:var(--text-sub);">Date</div>
@@ -596,8 +599,8 @@ async function showOrderDetail(orderId) {
     </div>
     <div style="margin-bottom:16px;">
       <div style="font-size:12px; color:var(--text-sub);">Contact</div>
-      <div>${order.customer.email}</div>
-      <div>${order.customer.phone}</div>
+      <div>${escapeHTML(order.customer.email)}</div>
+      <div>${escapeHTML(order.customer.phone)}</div>
     </div>
     <div>
       <div style="font-size:12px; color:var(--text-sub); margin-bottom:8px;">Items (${order.items.length})</div>
@@ -631,7 +634,7 @@ function showProductDetail(productId) {
 
   content.innerHTML = `
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="${product.images[0]}" style="width:200px; height:200px; object-fit:cover; border-radius:12px;">
+      <img src="${product.images[0]}" loading="lazy" class="skeleton" onload="this.classList.remove('skeleton')" style="width:200px; height:200px; object-fit:cover; border-radius:12px;">
     </div>
     <div style="margin-bottom:16px;">
       <div style="font-size:12px; color:var(--text-sub);">Product Name</div>
@@ -692,21 +695,21 @@ async function showCustomerDetail(customerEmail) {
   content.innerHTML = `
     <div style="text-align:center; margin-bottom:24px;">
       <div style="width:80px; height:80px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:32px; margin:0 auto;">
-        ${customer.name.charAt(0).toUpperCase()}
+        ${escapeHTML(customer.name.charAt(0).toUpperCase())}
       </div>
     </div>
     <div style="margin-bottom:16px;">
       <div style="font-size:12px; color:var(--text-sub);">Name</div>
-      <div style="font-weight:600; font-size:18px;">${customer.name}</div>
+      <div style="font-weight:600; font-size:18px;">${escapeHTML(customer.name)}</div>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <div style="font-size:12px; color:var(--text-sub);">Email</div>
-        <div>${customer.email}</div>
+        <div>${escapeHTML(customer.email)}</div>
       </div>
       <div>
         <div style="font-size:12px; color:var(--text-sub);">Phone</div>
-        <div>${customer.phone || '—'}</div>
+        <div>${escapeHTML(customer.phone || '—')}</div>
       </div>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">

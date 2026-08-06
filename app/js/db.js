@@ -318,20 +318,42 @@ class KBDatabase {
     return false;
   }
 
-  // Fix #7: validate promo codes against the database, not client-side hardcoded strings
+  // Fix #7 + anti-aliasing: validate via server-side RPC that checks both
+  // code validity AND whether this normalized email has already used it.
   async validatePromoCode(code) {
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('discount_percent')
-      .eq('code', code.toUpperCase().trim())
-      .eq('is_active', true)
-      .single();
-    if (error || !data) return { valid: false, discount: 0 };
-    return { valid: true, discount: data.discount_percent };
+    const user = this._currentUser;
+    const email = user?.email || '';
+    if (!email) return { valid: false, discount: 0, reason: 'You must be logged in to use promo codes.' };
+
+    const { data, error } = await supabase.rpc('validate_promo_code', {
+      p_code: code.toUpperCase().trim(),
+      p_email: email,
+      p_user_id: user?.id || null
+    });
+    if (error || !data || data.length === 0) return { valid: false, discount: 0, reason: 'Invalid or expired promo code.' };
+    const row = data[0];
+    return { valid: row.is_valid, discount: row.discount_percent || 0, reason: row.reason };
   }
 
-  async getOrders() {
-    const { data } = await supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false });
+  // Record that this user used the promo — called after successful payment.
+  async recordPromoUse(code, customerEmail) {
+    if (!code) return;
+    const user = this._currentUser;
+    const { error } = await supabase.from('promo_uses').insert({
+      promo_code: code.toUpperCase().trim(),
+      normalized_email: customerEmail.toLowerCase().replace(/\+.*@/, '@'),
+      user_id: user?.id || null
+    });
+    if (error) console.warn('[DB] Could not record promo use (may already be recorded):', error.message);
+  }
+
+  // limit: max orders to fetch (default 200). Admin dashboard can pass a higher value if needed.
+  async getOrders(limit = 200) {
+    const { data } = await supabase
+      .from('orders')
+      .select('*, order_items(*)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
     return (data || []).map(o => ({
       id: o.id, date: o.created_at, status: o.status, total: Number(o.total),
       userId: o.user_id,

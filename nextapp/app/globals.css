@@ -148,10 +148,10 @@ section { padding: 64px 0; }
 
 /* Logo image items in the scrolling bar */
 .brand-logo-item { display: inline-flex; align-items: center; justify-content: center; margin: 0 36px; vertical-align: middle; height: 44px; }
-.brand-bar-logo-img { height: 36px; max-width: 110px; width: auto; object-fit: contain; filter: brightness(0) invert(1); opacity: 0.75; transition: opacity 0.2s ease; }
-.brands-bar-inner:hover .brand-bar-logo-img { opacity: 0.95; }
+/* img starts opacity:0 (set inline); revealed via onLoad JS */
+.brand-bar-logo-img { height: 36px; max-width: 110px; width: auto; object-fit: contain; filter: brightness(0) invert(1); }
 
-/* Text fallback (legacy .brand-logo kept for safety) */
+/* Text fallback — shown by default, hidden by JS when logo loads */
 .brand-bar-logo-text,
 .brand-logo { font-family: var(--font-display); color: var(--white); font-size: clamp(16px,2.5vw,26px); font-weight: 400; letter-spacing: 2px; white-space: nowrap; opacity: 0.8; }
 

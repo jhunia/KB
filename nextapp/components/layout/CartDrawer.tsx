@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import { db } from '@/lib/db';
+import { useWishlist } from '@/context/WishlistContext';
 
 export default function CartDrawer() {
   const { items, isOpen, closeDrawer, removeFromCart, updateQuantity, cartTotal, getProductById } = useCart();
+  const { wishlistProducts } = useWishlist();
 
   const formatPrice = (p: number) => `GH₵${p.toFixed(2)}`;
 
@@ -60,6 +61,34 @@ export default function CartDrawer() {
             })
           )}
         </div>
+
+        {/* ── Favourites section ─────────────────────────────────────────── */}
+        {wishlistProducts.length > 0 && (
+          <div className="cart-drawer-favourites">
+            <div className="cart-drawer-favourites-header">
+              <span>❤️ Favourited Items</span>
+              <Link href="/profile" className="cart-drawer-favourites-view" onClick={closeDrawer}>View all</Link>
+            </div>
+            <div className="cart-drawer-favourites-list">
+              {wishlistProducts.slice(0, 4).map(p => (
+                <Link
+                  key={p.id}
+                  href={`/product/${p.id}`}
+                  className="cart-drawer-fav-item"
+                  onClick={closeDrawer}
+                >
+                  <div className="cart-drawer-fav-img">
+                    <img src={p.images[0]} alt={p.name} loading="lazy" />
+                  </div>
+                  <div className="cart-drawer-fav-info">
+                    <div className="cart-drawer-fav-name">{p.name}</div>
+                    <div className="cart-drawer-fav-price">{formatPrice(p.price)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {items.length > 0 && (
           <div className="cart-drawer-footer" id="cartDrawerFooter">

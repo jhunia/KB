@@ -344,6 +344,20 @@ section { padding: 64px 0; }
 .cart-drawer-empty { text-align: center; padding: 60px 20px; color: var(--gray-600); }
 .cart-drawer-empty svg { margin: 0 auto 16px; opacity: 0.3; }
 
+/* ── Favourites section inside cart drawer ──────────────────────────────── */
+.cart-drawer-favourites { padding: 16px 24px; border-top: 1px solid var(--gray-200); background: var(--gray-50); }
+.cart-drawer-favourites-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; font-weight: 700; letter-spacing: 0.03em; color: var(--black); }
+.cart-drawer-favourites-view { font-size: 12px; font-weight: 500; color: var(--black); text-decoration: underline; opacity: 0.6; transition: opacity 0.15s; }
+.cart-drawer-favourites-view:hover { opacity: 1; }
+.cart-drawer-favourites-list { display: flex; flex-direction: column; gap: 10px; }
+.cart-drawer-fav-item { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 8px; border-radius: var(--radius-sm); transition: background 0.15s; }
+.cart-drawer-fav-item:hover { background: var(--gray-100); }
+.cart-drawer-fav-img { width: 52px; height: 52px; border-radius: var(--radius-sm); overflow: hidden; background: var(--gray-100); flex-shrink: 0; }
+.cart-drawer-fav-img img { width: 100%; height: 100%; object-fit: cover; }
+.cart-drawer-fav-info { flex: 1; min-width: 0; }
+.cart-drawer-fav-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.cart-drawer-fav-price { font-size: 12px; color: var(--gray-600); }
+
 /* ============================================ SKELETON */
 .skeleton { background: #eee; background: linear-gradient(110deg,#ececec 8%,#f5f5f5 18%,#ececec 33%); background-size: 200% 100%; animation: 1.5s shine linear infinite; color: transparent; }
 @keyframes shine { to { background-position-x: -200%; } }

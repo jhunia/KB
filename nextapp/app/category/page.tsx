@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
@@ -12,6 +12,14 @@ const ALL_STYLES = ['casual', 'formal', 'party', 'gym'];
 const ALL_CATEGORIES = ['tshirts', 'shirts', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'accessories'];
 
 export default function CategoryPage() {
+  return (
+    <Suspense fallback={<main className="category-main"><div className="container" /></main>}>
+      <CategoryPageInner />
+    </Suspense>
+  );
+}
+
+function CategoryPageInner() {
   const params = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);

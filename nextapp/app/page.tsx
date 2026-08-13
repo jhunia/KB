@@ -31,9 +31,12 @@ function useCountdown(target: string | null) {
       s: Math.floor((diff % 60000) / 1000),
     };
   };
-  const [time, setTime] = useState(calc);
+  // Start as null so SSR and the first client render both output nothing,
+  // avoiding a hydration mismatch from Date.now() ticking between renders.
+  const [time, setTime] = useState<ReturnType<typeof calc>>(null);
   useEffect(() => {
     if (!target) return;
+    setTime(calc()); // populate immediately after mount
     const iv = setInterval(() => setTime(calc()), 1000);
     return () => clearInterval(iv);
   }, [target]);

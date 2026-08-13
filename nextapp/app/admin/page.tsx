@@ -156,7 +156,7 @@ export default function AdminPage() {
   const handleToggleStock = async (productId: number) => {
     setStockUpdating(productId);
     const p = db.getProductById(productId);
-    if (p) await db.updateProductStock(productId, !p.inStock);
+    if (p) await db.updateProduct(productId, { inStock: !p.inStock });
     setProducts(db.getProducts());
     if (selectedProduct?.id === productId) setSelectedProduct(db.getProductById(productId) || null);
     setStockUpdating(null);

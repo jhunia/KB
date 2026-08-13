@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +8,14 @@ import { getClient } from '@/lib/supabase/client';
 type AuthView = 'login' | 'signup' | 'forgot' | 'reset';
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="auth-main" />}>
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
   const { user, login, signup, requestPasswordReset, updatePassword } = useAuth();
   const [view, setView] = useState<AuthView>('login');
   const [alert, setAlert] = useState<{ msg: string; type: 'error' | 'success' } | null>(null);

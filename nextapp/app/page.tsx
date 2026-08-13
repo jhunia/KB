@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import ProductCard from '@/components/ui/ProductCard';
 import type { Product, Testimonial } from '@/lib/types';
+import { getBrandLogo } from '@/lib/brandLogos';
 
 // ── Promo configuration — edit to change the active promo ───────────────────
 const PROMO = {
@@ -217,18 +218,34 @@ export default function HomePage() {
       </section>
 
       {/* BRANDS BAR */}
-      <div className="brands-bar">
-        <div className="brands-bar-inner track-1">
-          {['VERSACE', 'ZARA', 'GUCCI', 'PRADA', 'Calvin Klein', 'VERSACE', 'ZARA', 'GUCCI', 'PRADA', 'Calvin Klein'].map((b, i) => (
-            <span key={i} className="brand-logo">{b}</span>
-          ))}
-        </div>
-        <div className="brands-bar-inner track-2 mobile-only">
-          {['DIOR', 'NIKE', 'CHANEL', 'BALENCIAGA', 'DIOR', 'NIKE', 'CHANEL', 'BALENCIAGA'].map((b, i) => (
-            <span key={i} className="brand-logo">{b}</span>
-          ))}
-        </div>
-      </div>
+      {(() => {
+        const track1 = ['Versace', 'Zara', 'Gucci', 'Prada', 'Calvin Klein', 'Dior', 'Nike', 'Chanel', 'Balenciaga', 'Adidas'];
+        const track2 = ['Puma', 'Lacoste', 'Hugo Boss', 'Under Armour', 'H&M', 'Clarks', 'Zara', 'Nike', 'Gucci', 'Prada'];
+        const renderLogo = (b: string, i: number) => {
+          const src = getBrandLogo(b, 80);
+          return (
+            <span key={i} className="brand-logo-item">
+              {src
+                ? <img src={src} alt={b} className="brand-bar-logo-img" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'inline'; }} />
+                : null}
+              <span className="brand-bar-logo-text" style={{ display: src ? 'none' : 'inline' }}>{b.toUpperCase()}</span>
+            </span>
+          );
+        };
+        // Duplicate arrays for seamless infinite scroll
+        const t1 = [...track1, ...track1];
+        const t2 = [...track2, ...track2];
+        return (
+          <div className="brands-bar">
+            <div className="brands-bar-inner track-1">
+              {t1.map(renderLogo)}
+            </div>
+            <div className="brands-bar-inner track-2 mobile-only">
+              {t2.map(renderLogo)}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* NEW ARRIVALS */}
       <CarouselSection title="NEW ARRIVALS" products={newArrivals} viewAllHref="/category?filter=new" />

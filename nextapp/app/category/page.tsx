@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
 import ProductCard from '@/components/ui/ProductCard';
 import type { Product } from '@/lib/types';
+import { getBrandLogo } from '@/lib/brandLogos';
 
 const PER_PAGE = 9;
 const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -120,10 +121,28 @@ function CategoryPageInner() {
             <div className="brands-grid">
               {brands.map(brand => {
                 const count = products.filter(p => p.brand === brand).length;
+                const logoSrc = getBrandLogo(brand, 80);
                 return (
                   <Link key={brand} href={`/category?brand=${encodeURIComponent(brand)}`} className="brand-card">
-                    <div className="brand-card-title">{brand}</div>
-                    <div className="brand-card-count">{count} products</div>
+                    <div className="brand-logo-wrap">
+                      {logoSrc ? (
+                        <img
+                          src={logoSrc}
+                          alt={brand}
+                          className="brand-logo-img"
+                          onError={(e) => {
+                            // Fallback to text if logo fails to load
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'block';
+                          }}
+                        />
+                      ) : null}
+                      <span className="brand-logo-fallback" style={{ display: logoSrc ? 'none' : 'block' }}>
+                        {brand}
+                      </span>
+                    </div>
+                    <div className="brand-card-count">{count} product{count !== 1 ? 's' : ''}</div>
                   </Link>
                 );
               })}

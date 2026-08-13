@@ -314,7 +314,11 @@ class KBDatabase {
 
   async savePaymentRef(orderId: string, ref: string): Promise<boolean> {
     const supabase = getClient();
-    const { error } = await supabase.from('orders').update({ payment_ref: ref }).eq('id', orderId);
+    // Mark order as paid and save the payment reference atomically
+    const { error } = await supabase
+      .from('orders')
+      .update({ payment_ref: ref, status: 'paid' })
+      .eq('id', orderId);
     if (error) console.error('[DB] Payment ref save error:', error);
     return !error;
   }

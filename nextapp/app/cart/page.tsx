@@ -124,7 +124,7 @@ function LikedTile({
 /*  CART PAGE                                                       */
 /* ═══════════════════════════════════════════════════════════════ */
 export default function CartPage() {
-  const { items, removeFromCart, updateQuantity, clearCart, cartTotal, getProductById } = useCart();
+  const { items, removeFromCart, updateQuantity, clearCart, cartTotal, getProductById, addToCart } = useCart();
   const { wishlistProducts } = useWishlist();
 
   const [promoCode, setPromoCode] = useState('');
@@ -205,7 +205,8 @@ export default function CartPage() {
   const quickAddToCart = async (product: Product) => {
     const size = product.sizes?.[0] || 'M';
     const color = product.colors?.[0] || 'Black';
-    await db.addToCart(product.id, size, color, 1);
+    // Use CartContext addToCart so cartTotal and item list update reactively
+    await addToCart(product.id, size, color, 1);
     setQuickAddMsg(`${product.name} added to cart!`);
     setTimeout(() => setQuickAddMsg(''), 2500);
   };

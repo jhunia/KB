@@ -274,8 +274,31 @@ export default function AdminPage() {
 
   return (
     <main style={{ background: '#F8F9FB', minHeight: '100vh', paddingBottom: 60 }}>
+      {/* Responsive overrides for admin panel */}
+      <style>{`
+        .admin-topbar { background: var(--white); border-bottom: 1px solid var(--gray-200); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .admin-wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 0; }
+        .admin-tabs { display: flex; gap: 4; margin-bottom: 24px; background: var(--gray-100); padding: 4px; border-radius: 12px; width: 100%; overflow-x: auto; scrollbar-width: none; }
+        .admin-tabs::-webkit-scrollbar { display: none; }
+        .admin-tab-btn { padding: 9px 18px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; text-transform: capitalize; white-space: nowrap; flex-shrink: 0; }
+        .admin-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
+        .admin-orders-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+        .admin-orders-filters input, .admin-orders-filters select { width: 100%; max-width: 220px; }
+        @media (max-width: 768px) {
+          .admin-topbar { padding: 12px 16px; }
+          .admin-wrap { padding: 16px 12px 0; }
+          .admin-kpi-grid { grid-template-columns: repeat(2,1fr); gap: 12px; }
+          .admin-orders-filters input, .admin-orders-filters select { max-width: 100%; }
+          .admin-tab-btn { padding: 8px 14px; font-size: 13px; }
+        }
+        @media (max-width: 480px) {
+          .admin-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+          .admin-topbar span { font-size: 18px !important; }
+        }
+      `}</style>
+
       {/* Top Bar */}
-      <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--gray-200)', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="admin-topbar">
         <div>
           <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 900 }}>KB.ENT Admin</span>
         </div>
@@ -284,13 +307,14 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 24px 0' }}>
+      <div className="admin-wrap">
         {/* Tab Bar */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: 'var(--gray-100)', padding: 4, borderRadius: 12, width: 'fit-content', flexWrap: 'wrap' }}>
+        <div className="admin-tabs">
           {(['dashboard', 'orders', 'products', 'customers'] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              padding: '9px 22px', borderRadius: 8, border: 'none', fontSize: 14, cursor: 'pointer', textTransform: 'capitalize', fontWeight: tab === t ? 700 : 400,
-              background: tab === t ? 'var(--white)' : 'transparent', boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
+            <button key={t} onClick={() => setTab(t)} className="admin-tab-btn" style={{
+              fontWeight: tab === t ? 700 : 400,
+              background: tab === t ? 'var(--white)' : 'transparent',
+              boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
             }}>{t}</button>
           ))}
         </div>
@@ -299,20 +323,21 @@ export default function AdminPage() {
         {tab === 'dashboard' && (
           <div>
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
+            <div className="admin-kpi-grid">
               {[
                 { label: 'Confirmed Revenue', value: fmt(revenue), sub: `+${fmt(pendingRev)} pending`, subColor: '#F59E0B' },
                 { label: 'Total Orders', value: orders.length, sub: `${activeOrders} active` },
                 { label: 'Products', value: products.length },
                 { label: 'Customers', value: customers.length },
               ].map((k, i) => (
-                <div key={i} style={{ ...card, padding: 24 }}>
+                <div key={i} style={{ ...card, padding: 20 }}>
                   <div style={{ fontSize: 12, color: 'var(--gray-600)', marginBottom: 6 }}>{k.label}</div>
-                  <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-display)' }}>{k.value}</div>
+                  <div style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--font-display)' }}>{k.value}</div>
                   {k.sub && <div style={{ fontSize: 12, marginTop: 4, color: k.subColor || 'var(--gray-600)' }}>{k.sub}</div>}
                 </div>
               ))}
             </div>
+
 
             {/* Sales Chart */}
             <div style={{ ...card, padding: 24, marginBottom: 28 }}>
@@ -359,8 +384,8 @@ export default function AdminPage() {
           <div style={{ ...card, padding: 24 }}>
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
               <h3 style={{ fontWeight: 700, fontSize: 18 }}>All Orders ({filteredOrders.length})</h3>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <input value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search name, email, ID…" style={{ padding: '8px 14px', border: '1px solid var(--gray-200)', borderRadius: 8, fontSize: 14, width: 220 }} />
+              <div className="admin-orders-filters">
+                <input value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search name, email, ID…" style={{ padding: '8px 14px', border: '1px solid var(--gray-200)', borderRadius: 8, fontSize: 14 }} />
                 <select value={orderStatus} onChange={e => setOrderStatus(e.target.value)} style={{ padding: '8px 12px', border: '1px solid var(--gray-200)', borderRadius: 8, fontSize: 14 }}>
                   <option value="all">All Statuses</option>
                   {['pending_payment', 'paid', 'Processing', 'Shipped', 'Delivered', 'Cancellation Requested', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}

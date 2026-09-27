@@ -1,14 +1,15 @@
 'use client';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import ProductCard from '@/components/ui/ProductCard';
+import ProductCardSkeleton from '@/components/ui/ProductCardSkeleton';
 import type { Product, Testimonial } from '@/lib/types';
 import { getBrandLogo } from '@/lib/brandLogos';
+import Image from 'next/image';
 
-// ── Promo configuration — edit to change the active promo ───────────────────
-const PROMO = {
-  active: true,
+// ── Promo configuration — edit to change the visual/copy; active is DB-controlled ──
+const PROMO_CONFIG = {
   badge: '🎉 Limited Time',
   title: 'END OF SEASON\nSALE',
   subtitle: "Up to 40% off on selected styles. Don't miss out — stock is flying off the shelves.",
@@ -20,53 +21,51 @@ const PROMO = {
   visual: '🛍️',
 };
 
+// A clock that ticks once per second. The server snapshot is null so SSR and
+// hydration output nothing, avoiding a mismatch from Date.now() moving on.
+const subscribeClock = (onTick: () => void) => {
+  const iv = setInterval(onTick, 1000);
+  return () => clearInterval(iv);
+};
+const useNowSeconds = () =>
+  useSyncExternalStore(subscribeClock, () => Math.floor(Date.now() / 1000), () => null);
+
 function useCountdown(target: string | null) {
-  const calc = () => {
-    if (!target) return null;
-    const diff = new Date(target).getTime() - Date.now();
-    if (diff <= 0) return { d: 0, h: 0, m: 0, s: 0 };
-    return {
-      d: Math.floor(diff / 86400000),
-      h: Math.floor((diff % 86400000) / 3600000),
-      m: Math.floor((diff % 3600000) / 60000),
-      s: Math.floor((diff % 60000) / 1000),
-    };
+  const now = useNowSeconds();
+  if (!target || now === null) return null;
+  const diff = new Date(target).getTime() - now * 1000;
+  if (diff <= 0) return { d: 0, h: 0, m: 0, s: 0 };
+  return {
+    d: Math.floor(diff / 86400000),
+    h: Math.floor((diff % 86400000) / 3600000),
+    m: Math.floor((diff % 3600000) / 60000),
+    s: Math.floor((diff % 60000) / 1000),
   };
-  // Start as null so SSR and the first client render both output nothing,
-  // avoiding a hydration mismatch from Date.now() ticking between renders.
-  const [time, setTime] = useState<ReturnType<typeof calc>>(null);
-  useEffect(() => {
-    if (!target) return;
-    setTime(calc()); // populate immediately after mount
-    const iv = setInterval(() => setTime(calc()), 1000);
-    return () => clearInterval(iv);
-  }, [target]);
-  return time;
 }
 
-function PromoBanner() {
-  const countdown = useCountdown(PROMO.countdownTo);
-  if (!PROMO.active) return null;
+function PromoBanner({ active }: { active: boolean }) {
+  const countdown = useCountdown(PROMO_CONFIG.countdownTo);
+  if (!active) return null;
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
     <section className="promo-section">
       <div className="container">
-        <div className="promo-banner" style={{ background: PROMO.gradient }}>
+        <div className="promo-banner" style={{ background: PROMO_CONFIG.gradient }}>
           <div className="promo-content">
-            <div className="promo-badge" style={{ color: PROMO.accentColor, borderColor: PROMO.accentColor, background: `${PROMO.accentColor}22` }}>
-              {PROMO.badge}
+            <div className="promo-badge" style={{ color: PROMO_CONFIG.accentColor, borderColor: PROMO_CONFIG.accentColor, background: `${PROMO_CONFIG.accentColor}22` }}>
+              {PROMO_CONFIG.badge}
             </div>
             <div className="promo-title">
-              {PROMO.title.split('\n').map((line, i, arr) => (
-                <span key={i} style={i === arr.length - 1 ? { color: PROMO.accentColor } : undefined}>
+              {PROMO_CONFIG.title.split('\n').map((line, i, arr) => (
+                <span key={i} style={i === arr.length - 1 ? { color: PROMO_CONFIG.accentColor } : undefined}>
                   {line}{i < arr.length - 1 && <br />}
                 </span>
               ))}
             </div>
-            <p className="promo-subtitle">{PROMO.subtitle}</p>
+            <p className="promo-subtitle">{PROMO_CONFIG.subtitle}</p>
             <div className="promo-actions">
-              <Link href={PROMO.btnHref} className="promo-btn" style={{ color: '#1a1a2e' }}>
-                {PROMO.btnLabel} →
+              <Link href={PROMO_CONFIG.btnHref} className="promo-btn" style={{ color: '#1a1a2e' }}>
+                {PROMO_CONFIG.btnLabel} →
               </Link>
               {countdown && (
                 <div className="promo-countdown">
@@ -81,7 +80,7 @@ function PromoBanner() {
             </div>
           </div>
           <div className="promo-visual" aria-hidden="true" style={{ fontSize: 96, filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.3))' }}>
-            {PROMO.visual}
+            {PROMO_CONFIG.visual}
           </div>
         </div>
       </div>
@@ -90,12 +89,14 @@ function PromoBanner() {
 }
 
 // ── Carousel section with scroll-synced dots ────────────────────────────────
-function CarouselSection({ title, products, viewAllHref }: {
+function CarouselSection({ title, products, viewAllHref, loading }: {
   title: string;
   products: Product[];
   viewAllHref: string;
+  loading: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const DOT_COUNT = Math.min(products.length, 8);
 
@@ -119,12 +120,14 @@ function CarouselSection({ title, products, viewAllHref }: {
     el.scrollTo({ left: target, behavior: 'smooth' });
   };
 
-  // Auto-advance
+  // Auto-advance — pauses while the shopper is hovering, touching or focused inside,
+  // and never runs for people who have asked their device to reduce motion
   useEffect(() => {
     if (!products.length) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const iv = setInterval(() => {
       const el = wrapperRef.current;
-      if (!el) return;
+      if (!el || pausedRef.current || el.scrollWidth <= el.clientWidth) return;
       const nextScroll = el.scrollLeft + el.clientWidth * 0.8;
       el.scrollTo({ left: nextScroll >= el.scrollWidth - el.clientWidth ? 0 : nextScroll, behavior: 'smooth' });
     }, 3500);
@@ -137,15 +140,28 @@ function CarouselSection({ title, products, viewAllHref }: {
         <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
           <h2 className="section-title" style={{ marginBottom: 0 }}>{title}</h2>
         </div>
-        <div ref={wrapperRef} style={{ overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-          <div className="products-grid carousel-grid" style={{ display: 'flex', gap: 16, minWidth: 'min-content' }}>
-            {products.map(p => <ProductCard key={p.id} product={p} carousel />)}
+        <div
+          ref={wrapperRef}
+          className="carousel-wrapper"
+          onMouseEnter={() => { pausedRef.current = true; }}
+          onMouseLeave={() => { pausedRef.current = false; }}
+          onTouchStart={() => { pausedRef.current = true; }}
+          onFocus={() => { pausedRef.current = true; }}
+          onBlur={() => { pausedRef.current = false; }}
+        >
+          <div className="products-grid carousel-grid">
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} carousel />)
+              : products.map(p => <ProductCard key={p.id} product={p} carousel />)}
           </div>
         </div>
+        {!loading && products.length === 0 && (
+          <p style={{ color: 'var(--gray-600)', textAlign: 'center', padding: '24px 0' }}>New styles are on the way — check back soon.</p>
+        )}
         {products.length > 3 && (
           <div className="carousel-dots">
             {Array.from({ length: DOT_COUNT }).map((_, i) => (
-              <span key={i} className={i === activeIdx ? 'active' : ''} onClick={() => scrollToIdx(i)} />
+              <button type="button" key={i} className={i === activeIdx ? 'active' : ''} onClick={() => scrollToIdx(i)} aria-label={`Scroll to part ${i + 1} of ${DOT_COUNT}`} aria-current={i === activeIdx} />
             ))}
           </div>
         )}
@@ -163,6 +179,8 @@ export default function HomePage() {
   const [topSelling, setTopSelling] = useState<Product[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [promoActive, setPromoActive] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const testimonialRef = useRef<HTMLDivElement>(null);
   const testimonialWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -171,7 +189,11 @@ export default function HomePage() {
       await db.init();
       setNewArrivals(db.getProductsByTag('new'));
       setTopSelling(db.getProductsByTag('top'));
+      setLoaded(true);
       setTestimonials(db.getTestimonials());
+      // Load promo active state from Supabase (falls back to false if table missing)
+      const active = await db.getSiteSetting('promo_banner_active', false);
+      setPromoActive(active === true);
     })();
   }, []);
 
@@ -212,7 +234,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="hero-image">
-            <img src="/assets/images/landing_page.jpg" alt="KB.ENT Fashion" loading="lazy" />
+            <Image src="/assets/images/landing_page.jpg" alt="KB.ENT Fashion" width={736} height={920} sizes="(max-width: 768px) 100vw, 50vw" preload />
           </div>
         </div>
       </section>
@@ -227,6 +249,8 @@ export default function HomePage() {
           return (
             <span key={i} className="brand-logo-item">
               {src && (
+                // Third-party logo CDN with an onError text fallback; next/image would proxy it through the optimiser.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}
                   alt=""
@@ -270,15 +294,15 @@ export default function HomePage() {
 
 
       {/* NEW ARRIVALS */}
-      <CarouselSection title="NEW ARRIVALS" products={newArrivals} viewAllHref="/category?filter=new" />
+      <CarouselSection title="NEW ARRIVALS" products={newArrivals} viewAllHref="/category?filter=new" loading={!loaded} />
 
       <hr className="section-divider" />
 
       {/* TOP SELLING */}
-      <CarouselSection title="TOP SELLING" products={topSelling} viewAllHref="/category?filter=top" />
+      <CarouselSection title="TOP SELLING" products={topSelling} viewAllHref="/category?filter=top" loading={!loaded} />
 
       {/* PROMO BANNER */}
-      <PromoBanner />
+      <PromoBanner active={promoActive} />
 
       {/* BROWSE BY STYLE */}
       <section className="style-section">

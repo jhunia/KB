@@ -7,6 +7,8 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { loadPaystackScript, initPaystackPayment } from '@/lib/paystack';
 import type { Product } from '@/lib/types';
+import Image from 'next/image';
+import { colorName } from '@/lib/colors';
 
 const DELIVERY_FEE = 0; // Delivery quoted per order — admin calls customer to confirm
 
@@ -31,9 +33,11 @@ function LikedTile({
         padding: '10px 0', borderBottom: '1px solid var(--gray-100)',
       }}>
         <Link href={`/product/${product.id}`} style={{ flexShrink: 0 }}>
-          <img
+          <Image
             src={product.images[0]}
             alt={product.name}
+            width={104}
+            height={104}
             style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', background: 'var(--gray-100)' }}
           />
         </Link>
@@ -68,9 +72,11 @@ function LikedTile({
     }}>
       <div style={{ position: 'relative' }}>
         <Link href={`/product/${product.id}`}>
-          <img
+          <Image
             src={product.images[0]}
             alt={product.name}
+            width={400}
+            height={360}
             style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
           />
         </Link>
@@ -124,7 +130,7 @@ function LikedTile({
 /*  CART PAGE                                                       */
 /* ═══════════════════════════════════════════════════════════════ */
 export default function CartPage() {
-  const { items, removeFromCart, updateQuantity, clearCart, cartTotal, getProductById, addToCart } = useCart();
+  const { items, initialized, removeFromCart, updateQuantity, clearCart, cartTotal, getProductById, addToCart } = useCart();
   const { wishlistProducts } = useWishlist();
 
   const [promoCode, setPromoCode] = useState('');
@@ -149,6 +155,14 @@ export default function CartPage() {
     });
     loadPaystackScript();
   }, []);
+
+  // Escape closes the checkout window
+  useEffect(() => {
+    if (!showModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowModal(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showModal]);
 
   const handlePromo = async () => {
     if (!promoCode.trim()) return;
@@ -207,11 +221,23 @@ export default function CartPage() {
     const color = product.colors?.[0] || 'Black';
     // Use CartContext addToCart so cartTotal and item list update reactively
     await addToCart(product.id, size, color, 1);
-    setQuickAddMsg(`${product.name} added to cart!`);
-    setTimeout(() => setQuickAddMsg(''), 2500);
+    setQuickAddMsg(`${product.name} added (size ${size}, ${colorName(color)}). Remove it and add from the product page for a different option.`);
+    setTimeout(() => setQuickAddMsg(''), 5000);
   };
 
   const formatPrice = (p: number) => `GH₵${p.toFixed(2)}`;
+
+  /* ── Still loading cart ── */
+  if (!initialized) {
+    return (
+      <main>
+        <div className="container" style={{ padding: '80px 16px', textAlign: 'center' }}>
+          <h1 className="cart-title">Your Cart</h1>
+          <p style={{ color: 'var(--gray-600)', marginTop: 24 }}>Loading your cart…</p>
+        </div>
+      </main>
+    );
+  }
 
   /* ── Empty cart ── */
   if (items.length === 0) {
@@ -265,14 +291,14 @@ export default function CartPage() {
                   <div key={`${item.productId}-${item.size}-${item.color}`} className="cart-item">
                     <div className="cart-item-img">
                       <Link href={`/product/${product.id}`}>
-                        <img src={product.images[0]} alt={product.name} />
+                        <Image src={product.images[0]} alt={product.name} width={400} height={400} sizes="(max-width: 768px) 100vw, 120px" />
                       </Link>
                     </div>
                     <div className="cart-item-details">
                       <div className="cart-item-title-row">
                         <div>
                           <div className="cart-item-title">{product.name}</div>
-                          <div className="cart-item-meta">Size: {item.size} | Color: {item.color}</div>
+                          <div className="cart-item-meta">Size: {item.size} | Color: {colorName(item.color)}</div>
                         </div>
                         <button className="cart-item-remove" onClick={() => removeFromCart(index)} aria-label="Remove">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,45 +377,69 @@ export default function CartPage() {
         className={`checkout-modal-overlay${showModal ? ' open' : ''}`}
         onClick={e => e.target === e.currentTarget && setShowModal(false)}
       >
-        <div className="checkout-modal" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
           <div className="modal-header">
-            <h3>Complete Your Order</h3>
-            <button onClick={() => setShowModal(false)}>✕</button>
+            <h3 id="checkout-title">Complete Your Order</h3>
+            <button type="button" onClick={() => setShowModal(false)} aria-label="Close checkout">✕</button>
+          </div>
+
+          {/* What they're paying for — visible right above the form */}
+          <div className="checkout-summary">
+            <ul>
+              {items.map(item => {
+                const p = getProductById(item.productId);
+                if (!p) return null;
+                return (
+                  <li key={`${item.productId}-${item.size}-${item.color}`}>
+                    <Image src={p.images[0]} alt="" width={80} height={80} />
+                    <div className="checkout-summary-info">
+                      <div className="checkout-summary-name">{p.name}</div>
+                      <div className="checkout-summary-meta">
+                        {[item.color && colorName(item.color), item.size && `Size ${item.size}`, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div className="checkout-summary-price">{formatPrice(p.price * item.quantity)}</div>
+                  </li>
+                );
+              })}
+            </ul>
+            {discountAmount > 0 && (
+              <div className="checkout-summary-row"><span>Discount ({promoDiscount}%)</span><span>-{formatPrice(discountAmount)}</span></div>
+            )}
+            <div className="checkout-summary-row"><span>Delivery</span><span>Confirmed by phone</span></div>
+            <div className="checkout-summary-row total"><span>Pay now</span><span>{formatPrice(total)}</span></div>
           </div>
 
           <form onSubmit={handleCheckout}>
             <div className="form-group">
-              <label>Full Name</label>
-              <input type="text" value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" required />
+              <label htmlFor="co-name">Full Name</label>
+              <input id="co-name" type="text" autoComplete="name" value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} placeholder="John Doe" required />
             </div>
             <div className="form-group">
-              <label>Email</label>
-              <input type="email" value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} placeholder="you@email.com" required />
+              <label htmlFor="co-email">Email</label>
+              <input id="co-email" type="email" autoComplete="email" value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} placeholder="you@email.com" required />
+              <small className="field-hint">Your receipt and order updates go here.</small>
             </div>
             <div className="form-group">
-              <label>Phone</label>
-              <input type="tel" value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} placeholder="024XXXXXXX" required />
+              <label htmlFor="co-phone">Phone</label>
+              <input id="co-phone" type="tel" inputMode="tel" autoComplete="tel" value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} placeholder="024XXXXXXX" required />
+              <small className="field-hint">We&apos;ll call this number to arrange delivery.</small>
             </div>
             <div className="form-group">
-              <label>Delivery Address</label>
-              <input type="text" value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} placeholder="House no., Street, City" />
+              <label htmlFor="co-address">Delivery Address</label>
+              <input id="co-address" type="text" autoComplete="street-address" value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} placeholder="House no., Street, City" />
             </div>
 
-            <div className="paystack-badge" style={{ width: '100%', textAlign: 'center' }}>
-              🔒 Secure Payment via Paystack
-            </div>
-
-            {/* ── STILL INTERESTED? ── */}
+            {/* ── STILL INTERESTED? (collapsed so it doesn't get in the way of paying) ── */}
             {wishlistProducts.length > 0 && (
-              <div style={{ margin: '16px 0', padding: '16px', background: 'var(--gray-50)', borderRadius: 12, border: '1px solid var(--gray-200)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF3333" stroke="#FF3333" strokeWidth="1.5">
+              <details className="checkout-liked">
+                <summary>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF3333" stroke="#FF3333" strokeWidth="1.5" aria-hidden="true">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>Still interested?</span>
-                  <span style={{ fontSize: 12, color: 'var(--gray-600)' }}>Add your liked items before checking out</span>
-                </div>
-                <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                  Add from your liked items ({wishlistProducts.length})
+                </summary>
+                <div style={{ maxHeight: 240, overflowY: 'auto', marginTop: 12 }}>
                   {wishlistProducts.map(p => (
                     <LikedTile
                       key={p.id}
@@ -404,14 +454,18 @@ export default function CartPage() {
                     ✅ {quickAddMsg}
                   </div>
                 )}
-              </div>
+              </details>
             )}
 
             <button type="submit" className="checkout-btn" disabled={modalLoading} style={{ marginTop: 8 }}>
-              {modalLoading ? 'Creating order…' : `Pay ${formatPrice(total)} (Products Only)`}
+              {modalLoading ? 'Creating order…' : `Pay ${formatPrice(total)} now`}
             </button>
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--gray-500)', marginTop: 8 }}>
-              Delivery fee confirmed separately after your order is placed.
+            <div className="payment-methods" aria-label="Accepted payment methods">
+              <span>Mobile Money</span><span>Visa</span><span>Mastercard</span><span>Bank</span>
+            </div>
+            <p className="paystack-note">
+              🔒 Payments are processed securely by Paystack — we never see your card or MoMo PIN.
+              <br />The delivery fee is confirmed by phone and paid separately.
             </p>
           </form>
         </div>
@@ -438,9 +492,14 @@ export default function CartPage() {
             <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
               Your order is confirmed!
             </h2>
-            <p style={{ color: 'var(--gray-600)', fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--gray-600)', fontSize: 15, marginBottom: guestOrderId ? 12 : 24, lineHeight: 1.6 }}>
               Thank you for shopping with <strong>KB.ENT</strong>. We&apos;ll call you shortly to arrange delivery.
             </p>
+            {guestOrderId && (
+              <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 24 }}>
+                Order reference: <strong style={{ color: 'var(--black)', wordBreak: 'break-all' }}>{guestOrderId}</strong>
+              </p>
+            )}
 
             {/* Bonus offer card */}
             <div style={{

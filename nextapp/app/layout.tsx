@@ -6,6 +6,7 @@ import { WishlistProvider } from '@/context/WishlistContext';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import CartDrawer from '@/components/layout/CartDrawer';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   title: 'KB.ENT — We Have Clothes That Match Your Style',
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <CartDrawer />
               {children}
               <Footer />
+              <Analytics />
             </CartProvider>
           </WishlistProvider>
         </AuthProvider>

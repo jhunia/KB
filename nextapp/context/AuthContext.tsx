@@ -3,10 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { db } from '@/lib/db';
 import type { User } from '@/lib/types';
+import { isPasswordRecovery, clearPasswordRecovery } from '@/lib/supabase/client';
 
 interface AuthContextValue {
   user: User | null;
   initialized: boolean;
+  /** True when the page was opened from a password-reset email link and the new password hasn't been set yet. */
+  passwordRecovery: boolean;
+  finishPasswordRecovery: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signup: (name: string, email: string, password: string, phone: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
@@ -19,11 +23,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     (async () => {
       await db.init();
       setUser(db.getCurrentUser());
+      setPasswordRecovery(isPasswordRecovery());
       setInitialized(true);
     })();
   }, []);
@@ -42,14 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await db.logout();
+    clearPasswordRecovery();
+    setPasswordRecovery(false);
     setUser(null);
   }, []);
 
   const requestPasswordReset = useCallback((email: string) => db.requestPasswordReset(email), []);
   const updatePassword = useCallback((newPassword: string) => db.updatePassword(newPassword), []);
+  const finishPasswordRecovery = useCallback(() => { clearPasswordRecovery(); setPasswordRecovery(false); }, []);
 
   return (
-    <AuthContext.Provider value={{ user, initialized, login, signup, logout, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, initialized, passwordRecovery, finishPasswordRecovery, login, signup, logout, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

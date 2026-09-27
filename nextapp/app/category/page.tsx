@@ -1,13 +1,15 @@
 'use client';
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
 import ProductCard from '@/components/ui/ProductCard';
+import ProductCardSkeleton from '@/components/ui/ProductCardSkeleton';
 import type { Product } from '@/lib/types';
 import { getBrandLogo } from '@/lib/brandLogos';
 
 const PER_PAGE = 9;
+const PRICE_SLIDER_MAX = 1000;
 const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const ALL_STYLES = ['casual', 'formal', 'party', 'gym'];
 const ALL_CATEGORIES = ['tshirts', 'shirts', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'accessories'];
@@ -23,34 +25,30 @@ export default function CategoryPage() {
 function CategoryPageInner() {
   const params = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
-  const [filtered, setFiltered] = useState<Product[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
-  const [initialized, setInitialized] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sort, setSort] = useState('popular');
 
   const [selCategories, setSelCategories] = useState<string[]>([]);
   const [selSizes, setSelSizes] = useState<string[]>([]);
-  const [selStyles, setSelStyles] = useState<string[]>([]);
-  const [priceMax, setPriceMax] = useState(600);
-
-  // Read initial URL params for style/filter
-  useEffect(() => {
+  const [selStyles, setSelStyles] = useState<string[]>(() => {
     const style = params.get('style');
-    const filter = params.get('filter');
-    if (style) setSelStyles([style]);
+    return style ? [style] : [];
+  });
+  const [priceMax, setPriceMax] = useState(PRICE_SLIDER_MAX);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
     (async () => {
       await db.init();
       setProducts(db.getProducts());
       setBrands(db.getBrands());
-      setInitialized(true);
+      setLoaded(true);
     })();
-  }, []); // eslint-disable-line
+  }, []);
 
-  // Apply filters whenever dependencies change
-  useEffect(() => {
-    if (!initialized) return;
+  // Apply filters (derived from products + URL params + sidebar selections)
+  const filtered = useMemo(() => {
     const filterTag = params.get('filter');
     const searchQ = params.get('search');
     const gender = params.get('gender');
@@ -62,6 +60,7 @@ function CategoryPageInner() {
     if (searchQ) result = result.filter(p => p.name.toLowerCase().includes(searchQ.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQ.toLowerCase()));
     if (filterTag === 'new') result = result.filter(p => p.tag === 'new');
     else if (filterTag === 'sale') result = result.filter(p => p.discount && p.discount > 0);
+    else if (filterTag === 'top') result = result.filter(p => p.tag === 'top');
     if (gender) result = result.filter(p => p.gender === gender || p.gender === 'Uni-sex');
     if (brand) result = result.filter(p => p.brand === brand);
     if (style && !params.get('style')) result = result.filter(p => p.style?.toLowerCase() === style);
@@ -69,16 +68,22 @@ function CategoryPageInner() {
     if (selCategories.length) result = result.filter(p => selCategories.includes(p.category));
     if (selSizes.length) result = result.filter(p => selSizes.some(s => p.sizes.includes(s)));
     if (selStyles.length && !params.get('style')) result = result.filter(p => selStyles.includes(p.style?.toLowerCase() || ''));
-    result = result.filter(p => p.price <= priceMax);
+    // Slider at its maximum means "any price", so expensive items are never silently hidden
+    if (priceMax < PRICE_SLIDER_MAX) result = result.filter(p => p.price <= priceMax);
 
     if (sort === 'price-asc') result.sort((a, b) => a.price - b.price);
     else if (sort === 'price-desc') result.sort((a, b) => b.price - a.price);
     else if (sort === 'newest') result.sort((a, b) => b.id - a.id);
     else result.sort((a, b) => b.rating - a.rating);
 
-    setFiltered(result);
-    setPage(1);
-  }, [initialized, products, params, selCategories, selSizes, selStyles, priceMax, sort]);
+    return result;
+  }, [products, params, selCategories, selSizes, selStyles, priceMax, sort]);
+
+  // Go back to page 1 whenever the filtered list changes
+  const [pageState, setPageState] = useState({ list: filtered, page: 1 });
+  const page = pageState.list === filtered ? pageState.page : 1;
+  const setPage = (next: number | ((p: number) => number)) =>
+    setPageState({ list: filtered, page: typeof next === 'function' ? next(page) : next });
 
   const isBrandsView = params.get('filter') === 'brands';
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -98,6 +103,7 @@ function CategoryPageInner() {
     if (style) return style.charAt(0).toUpperCase() + style.slice(1);
     if (filter === 'new') return 'New Arrivals';
     if (filter === 'sale') return 'On Sale';
+    if (filter === 'top') return 'Top Selling';
     if (filter === 'brands') return 'Brands';
     if (gender) return `${gender}'s Collection`;
     if (brand) return `${brand} Collection`;
@@ -126,6 +132,8 @@ function CategoryPageInner() {
                   <Link key={brand} href={`/category?brand=${encodeURIComponent(brand)}`} className="brand-card">
                     <div className="brand-logo-wrap">
                       {logoSrc ? (
+                        // Third-party logo CDN with an onError text fallback; next/image would proxy it through the optimiser.
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={logoSrc}
                           alt={brand}
@@ -172,12 +180,12 @@ function CategoryPageInner() {
               <hr className="filter-divider" />
 
               <div className="filter-group">
-                <div className="filter-group-title">Price (up to GH₵{priceMax})</div>
+                <div className="filter-group-title">Price (up to GH₵{priceMax}{priceMax >= PRICE_SLIDER_MAX ? '+' : ''})</div>
                 <div className="filter-group-content">
                   <div className="price-range">
-                    <input type="range" min={50} max={1000} value={priceMax} onChange={e => setPriceMax(Number(e.target.value))} style={{ width: '100%', pointerEvents: 'all' }} />
+                    <input type="range" min={50} max={PRICE_SLIDER_MAX} value={priceMax} onChange={e => setPriceMax(Number(e.target.value))} style={{ width: '100%', pointerEvents: 'all' }} />
                   </div>
-                  <div className="price-labels"><span>GH₵50</span><span>GH₵{priceMax}</span></div>
+                  <div className="price-labels"><span>GH₵50</span><span>GH₵{priceMax}{priceMax >= PRICE_SLIDER_MAX ? '+' : ''}</span></div>
                 </div>
               </div>
 
@@ -213,7 +221,7 @@ function CategoryPageInner() {
               <button
                 className="btn btn-primary btn-sm"
                 style={{ width: '100%', marginTop: 8 }}
-                onClick={() => { setSelCategories([]); setSelSizes([]); setSelStyles([]); setPriceMax(600); }}
+                onClick={() => { setSelCategories([]); setSelSizes([]); setSelStyles([]); setPriceMax(PRICE_SLIDER_MAX); }}
               >
                 Reset Filters
               </button>
@@ -237,7 +245,11 @@ function CategoryPageInner() {
                 </div>
               </div>
 
-              {pageProducts.length === 0 ? (
+              {!loaded ? (
+                <div className="products-grid category-grid" aria-busy="true" aria-label="Loading products">
+                  {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+                </div>
+              ) : pageProducts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '80px 0' }}>
                   <p style={{ fontSize: 18, color: 'var(--gray-600)' }}>No products found. Try adjusting your filters.</p>
                 </div>

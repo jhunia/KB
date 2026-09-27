@@ -1,29 +1,39 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/db';
+
+// Whether the top banner was dismissed lives in localStorage; read it as an
+// external store so SSR renders the banner and the client hides it if closed.
+const BANNER_KEY = 'kb_banner_closed';
+const BANNER_EVENT = 'kb-banner-change';
+const subscribeBanner = (onChange: () => void) => {
+  window.addEventListener(BANNER_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(BANNER_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
+};
+const isBannerOpen = () => {
+  try { return localStorage.getItem(BANNER_KEY) !== 'true'; } catch { return true; }
+};
 
 export default function Header() {
   const { cartCount, openDrawer } = useCart();
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [showBanner, setShowBanner] = useState(true);
+  const showBanner = useSyncExternalStore(subscribeBanner, isBannerOpen, () => true);
   const [searchVal, setSearchVal] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const router = useRouter();
   const navRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShowBanner(localStorage.getItem('kb_banner_closed') !== 'true');
-    }
-  }, []);
-
   const closeBanner = () => {
-    setShowBanner(false);
-    localStorage.setItem('kb_banner_closed', 'true');
+    try { localStorage.setItem(BANNER_KEY, 'true'); } catch {}
+    window.dispatchEvent(new Event(BANNER_EVENT));
   };
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -80,14 +90,15 @@ export default function Header() {
             <Link href="/category?filter=brands" onClick={() => setMobileOpen(false)}>Brands</Link>
           </nav>
 
-          <div className="header-search">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
+          <div className="header-search" role="search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
             <input
-              type="text"
+              type="search"
               placeholder="Search for products..."
+              aria-label="Search products"
               id="searchInput"
               value={searchVal}
               onChange={e => setSearchVal(e.target.value)}
@@ -96,6 +107,18 @@ export default function Header() {
           </div>
 
           <div className="header-icons">
+            <button
+              className="mobile-search-btn"
+              onClick={() => setMobileSearchOpen(v => !v)}
+              aria-label={mobileSearchOpen ? 'Close search' : 'Search products'}
+              aria-expanded={mobileSearchOpen}
+              aria-controls="mobileSearch"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </button>
             <button onClick={openDrawer} aria-label="Open cart" id="cartToggle">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
@@ -111,6 +134,24 @@ export default function Header() {
             </button>
           </div>
         </div>
+
+        {mobileSearchOpen && (
+          <div className="mobile-search-bar" id="mobileSearch" role="search">
+            <input
+              type="search"
+              placeholder="Search for products..."
+              aria-label="Search products"
+              autoFocus
+              value={searchVal}
+              onChange={e => setSearchVal(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setMobileSearchOpen(false);
+                if (e.key === 'Enter' && searchVal.trim()) setMobileSearchOpen(false);
+                handleSearch(e);
+              }}
+            />
+          </div>
+        )}
       </header>
     </>
   );

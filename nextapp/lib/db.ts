@@ -3,6 +3,9 @@
    ============================================ */
 import { getClient } from './supabase/client';
 import type { Product, CartItem, User, Order } from './types';
+import { compressImage, dataUrlToBlob, extensionFor } from './imageUpload';
+
+const PRODUCT_IMAGE_BUCKET = 'product-images';
 
 class KBDatabase {
   private _productsCache: Product[] | null = null;
@@ -10,11 +13,19 @@ class KBDatabase {
   private _wishlistCache: number[] = [];
   private _currentUser: User | null = null;
   private _initialized = false;
+  private _initPromise: Promise<void> | null = null;
 
-  // Must be called before any other method (client-side only)
-  async init() {
-    if (this._initialized) return;
-    const supabase = getClient();
+  // Must be called before any other method (client-side only).
+  // Concurrent callers share one in-flight load instead of each re-fetching everything.
+  init(): Promise<void> {
+    if (this._initialized) return Promise.resolve();
+    if (!this._initPromise) {
+      this._initPromise = this._doInit().finally(() => { this._initPromise = null; });
+    }
+    return this._initPromise;
+  }
+
+  private async _doInit() {
     await this._loadProducts();
     await this._loadSession();
     if (this._currentUser) {
@@ -31,16 +42,30 @@ class KBDatabase {
 
   async _loadProducts() {
     const supabase = getClient();
-    const { data, error } = await supabase.from('products').select('*').order('id');
+    const [{ data, error }, { data: reviewRows, error: reviewError }] = await Promise.all([
+      supabase.from('products').select('*').order('id'),
+      supabase.from('reviews').select('product_id, rating'),
+    ]);
     if (error) { console.error('[DB] Products load error:', error); this._productsCache = []; return; }
+    if (reviewError) console.error('[DB] Review stats load error:', reviewError);
+
+    // Ratings shown to shoppers come from real reviews only, so the star rating and
+    // the review list on the product page always agree.
+    const stats = new Map<number, { sum: number; count: number }>();
+    for (const r of (reviewRows || []) as Array<{ product_id: number; rating: number }>) {
+      const s = stats.get(r.product_id) || { sum: 0, count: 0 };
+      s.sum += r.rating; s.count++;
+      stats.set(r.product_id, s);
+    }
+
     this._productsCache = (data || []).map((p: Record<string, unknown>) => ({
       id: p.id as number,
       name: p.name as string,
       price: Number(p.price),
       originalPrice: p.original_price ? Number(p.original_price) : null,
       discount: p.discount as number | null,
-      rating: Number(p.rating),
-      reviews: p.reviews as number,
+      rating: stats.has(p.id as number) ? Math.round((stats.get(p.id as number)!.sum / stats.get(p.id as number)!.count) * 10) / 10 : 0,
+      reviews: stats.get(p.id as number)?.count ?? 0,
       category: p.category as string,
       brand: p.brand as string | null,
       gender: p.gender as string,
@@ -141,7 +166,11 @@ class KBDatabase {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, message: error.message };
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-    if (!profile) return { success: false, message: 'Profile not found.' };
+    if (!profile) {
+      // Don't leave a half-signed-in session behind if the profile row is missing
+      await supabase.auth.signOut();
+      return { success: false, message: 'Your account profile could not be found. Please contact support.' };
+    }
     this._currentUser = { id: profile.id, name: profile.name, email: profile.email, phone: profile.phone, role: profile.role };
     await this._mergeGuestCart();
     await this._loadWishlist();
@@ -150,11 +179,21 @@ class KBDatabase {
 
   async signup(name: string, email: string, password: string, phone: string) {
     const supabase = getClient();
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { name, phone } }
+      // Send the confirmation link back to whichever deployment the user signed up on
+      options: { data: { name, phone }, emailRedirectTo: `${origin}/auth` }
     });
     if (error) return { success: false, message: error.message };
+    // Supabase returns a user with no identities (and no error) when the email is already registered
+    if (data.user && data.user.identities?.length === 0) {
+      return { success: false, message: 'An account with this email already exists. Try logging in, or use "Forgot your password?".' };
+    }
+    // When email confirmation is enabled, session is null until the user confirms.
+    if (!data.session) {
+      return { success: true, emailConfirmationRequired: true };
+    }
     this._currentUser = { id: data.user!.id, name, email, phone, role: 'customer' };
     await this._mergeGuestCart();
     return { success: true, user: this._currentUser };
@@ -472,6 +511,45 @@ class KBDatabase {
     return this._productsCache?.[idx] || null;
   }
 
+  // ---- PRODUCT IMAGES (Supabase Storage) ----
+  /** Compresses and uploads an image to the `product-images` bucket, returning its public URL. */
+  async uploadProductImage(file: Blob): Promise<string> {
+    const supabase = getClient();
+    const blob = await compressImage(file);
+    const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extensionFor(blob.type)}`;
+    const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, blob, {
+      contentType: blob.type,
+      cacheControl: '31536000',
+    });
+    if (error) throw new Error(error.message);
+    return supabase.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+
+  /** Products whose images are still embedded as base64 data URLs in the table. */
+  getProductsWithEmbeddedImages(): Product[] {
+    return this.getProducts().filter(p => p.images.some(img => img.startsWith('data:')));
+  }
+
+  /** Moves every embedded base64 image into Storage and rewrites the product rows to use the URLs. */
+  async migrateEmbeddedImages(): Promise<{ migrated: number; failed: { id: number; message: string }[] }> {
+    const failed: { id: number; message: string }[] = [];
+    let migrated = 0;
+    for (const product of this.getProductsWithEmbeddedImages()) {
+      try {
+        const images: string[] = [];
+        for (const img of product.images) {
+          images.push(img.startsWith('data:') ? await this.uploadProductImage(await dataUrlToBlob(img)) : img);
+        }
+        const updated = await this.updateProduct(product.id, { images });
+        if (!updated) throw new Error('Could not save the new image URLs.');
+        migrated++;
+      } catch (e) {
+        failed.push({ id: product.id, message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return { migrated, failed };
+  }
+
   async deleteProduct(productId: number): Promise<boolean> {
     const supabase = getClient();
     const { error } = await supabase.from('products').delete().eq('id', productId);
@@ -558,7 +636,31 @@ class KBDatabase {
     return { success: true };
   }
 
+  // ---- SITE SETTINGS ----
+  // Reads a single key from the `site_settings` table.
+  // Falls back to `defaultValue` if the table doesn't exist yet or the row is missing.
+  async getSiteSetting(key: string, defaultValue: unknown = null): Promise<unknown> {
+    const supabase = getClient();
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', key)
+      .single();
+    if (error || !data) return defaultValue;
+    return data.value;
+  }
+
+  async setSiteSetting(key: string, value: unknown): Promise<boolean> {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({ key, value }, { onConflict: 'key' });
+    if (error) { console.error('[DB] setSiteSetting error:', error); return false; }
+    return true;
+  }
+
   // ---- TESTIMONIALS ----
+
   getTestimonials() {
     return [
       { name: "Sarah M.", text: "The quality of these clothes is unmatched.", rating: 5, verified: true },

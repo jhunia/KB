@@ -1,11 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
 import ProductCard from '@/components/ui/ProductCard';
 import type { Product, Review } from '@/lib/types';
+import Image from 'next/image';
+import { colorName, swatchColor } from '@/lib/colors';
+import SizeGuide from '@/components/ui/SizeGuide';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -22,8 +25,23 @@ export default function ProductPage({ params }: Props) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
+  const [missing, setMissing] = useState<'color' | 'size' | null>(null);
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [ctaVisible, setCtaVisible] = useState(true);
+  const colorRef = useRef<HTMLDivElement>(null);
+  const sizeRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
   const { addToCart } = useCart();
   const router = useRouter();
+
+  // Show the sticky mobile "Add to Cart" bar only while the main buttons are scrolled out of view
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setCtaVisible(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [product]);
 
   const [productId, setProductId] = useState<number>(0);
 
@@ -38,8 +56,9 @@ export default function ProductPage({ params }: Props) {
       const p = db.getProductById(productId);
       if (!p) { router.push('/category'); return; }
       setProduct(p);
-      if (p.sizes?.length) setSelectedSize(p.sizes[0]);
-      if (p.colors?.length) setSelectedColor(p.colors[0]);
+      // Only pre-select when there's no real choice — picking a size for the shopper leads to wrong-size orders
+      if (p.sizes?.length === 1) setSelectedSize(p.sizes[0]);
+      if (p.colors?.length === 1) setSelectedColor(p.colors[0]);
       setRelatedProducts(db.getComplementaryProducts(productId));
       const revs = await db.getReviews(productId);
       setReviews(revs);
@@ -52,17 +71,26 @@ export default function ProductPage({ params }: Props) {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleAddToCart = async () => {
-    if (!product) return;
-    if (!selectedSize) { toast('Please select a size'); return; }
-    if (!selectedColor) { toast('Please select a color'); return; }
+  // Returns false (and points the shopper at what's missing) if a colour or size still needs choosing
+  const handleAddToCart = async (): Promise<boolean> => {
+    if (!product) return false;
+    if (product.colors.length > 0 && !selectedColor) {
+      setMissing('color');
+      colorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    if (product.sizes.length > 0 && !selectedSize) {
+      setMissing('size');
+      sizeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
     await addToCart(product.id, selectedSize, selectedColor, quantity);
     toast(`${product.name} added to cart!`);
+    return true;
   };
 
   const handleBuyNow = async () => {
-    await handleAddToCart();
-    router.push('/cart');
+    if (await handleAddToCart()) router.push('/cart');
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -123,9 +151,16 @@ export default function ProductPage({ params }: Props) {
           <div className="product-gallery">
             <div className="gallery-thumbs">
               {product.images.map((img, i) => (
-                <div key={i} className={`gallery-thumb${i === selectedImg ? ' active' : ''}`} onClick={() => setSelectedImg(i)}>
-                  <img src={img} alt={`${product.name} ${i + 1}`} />
-                </div>
+                <button
+                  key={i}
+                  type="button"
+                  className={`gallery-thumb${i === selectedImg ? ' active' : ''}`}
+                  onClick={() => setSelectedImg(i)}
+                  aria-label={`Show image ${i + 1} of ${product.images.length}`}
+                  aria-pressed={i === selectedImg}
+                >
+                  <Image src={img} alt="" width={200} height={240} />
+                </button>
               ))}
             </div>
             <div className="gallery-main">
@@ -134,9 +169,13 @@ export default function ProductPage({ params }: Props) {
                   OUT OF STOCK
                 </div>
               )}
-              <img
+              <Image
                 src={product.images[selectedImg]}
                 alt={product.name}
+                width={900}
+                height={1200}
+                sizes="(max-width: 768px) 100vw, 45vw"
+                preload
                 style={product.inStock === false ? { opacity: 0.5, filter: 'grayscale(100%)' } : undefined}
               />
             </div>
@@ -146,8 +185,16 @@ export default function ProductPage({ params }: Props) {
           <div className="product-info">
             <h1 className="product-title">{product.name}</h1>
             <div className="product-rating">
-              <span className="stars">{renderStars(product.rating)}</span>
-              <span className="rating-text">{product.rating}/5 ({product.reviews} reviews)</span>
+              {product.reviews > 0 ? (
+                <>
+                  <span className="stars" aria-hidden="true">{renderStars(product.rating)}</span>
+                  <a href="#reviews" className="rating-text" aria-label={`Rated ${product.rating} out of 5. Read ${product.reviews} reviews`}>
+                    {product.rating}/5 ({product.reviews} {product.reviews === 1 ? 'review' : 'reviews'})
+                  </a>
+                </>
+              ) : (
+                <a href="#reviews" className="rating-text">No reviews yet</a>
+              )}
             </div>
             <div className="product-price-row">
               <span className="product-price">GH₵{product.price}</span>
@@ -158,42 +205,64 @@ export default function ProductPage({ params }: Props) {
 
             {/* Color Selection */}
             {product.colors.length > 0 && (
-              <>
-                <p className="option-label">Select Color: <strong>{selectedColor}</strong></p>
-                <div className="color-swatches">
-                  {product.colors.map(color => (
-                    <button
-                      key={color}
-                      className={`color-swatch${selectedColor === color ? ' active' : ''}`}
-                      onClick={() => setSelectedColor(color)}
-                      title={color}
-                      style={{ backgroundColor: color.toLowerCase() === 'white' ? '#f5f5f5' : color.toLowerCase() === 'beige' ? '#f5f0e8' : color.toLowerCase() }}
-                    />
-                  ))}
+              <div ref={colorRef} className={`option-block${missing === 'color' ? ' needs-choice' : ''}`}>
+                <p className="option-label" id="color-label">
+                  Color: <strong>{selectedColor ? colorName(selectedColor) : 'Choose a colour'}</strong>
+                </p>
+                <div className="color-swatches" role="group" aria-labelledby="color-label">
+                  {product.colors.map(color => {
+                    const soldOut = product.colorStock?.[color] === false;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`color-swatch${selectedColor === color ? ' active' : ''}${soldOut ? ' sold-out' : ''}`}
+                        onClick={() => { setSelectedColor(color); setMissing(null); }}
+                        title={colorName(color) + (soldOut ? ' (sold out)' : '')}
+                        aria-label={colorName(color) + (soldOut ? ', sold out' : '')}
+                        aria-pressed={selectedColor === color}
+                        disabled={soldOut}
+                        style={{ backgroundColor: swatchColor(color) }}
+                      />
+                    );
+                  })}
                 </div>
-              </>
+                {missing === 'color' && <p className="option-error" role="alert">Please choose a colour.</p>}
+              </div>
             )}
 
             {/* Size Selection */}
             {product.sizes.length > 0 && (
-              <>
-                <p className="option-label">Select Size: <strong>{selectedSize}</strong></p>
-                <div className="size-options">
+              <div ref={sizeRef} className={`option-block${missing === 'size' ? ' needs-choice' : ''}`}>
+                <div className="option-label-row">
+                  <p className="option-label" id="size-label">
+                    Size: <strong>{selectedSize || 'Choose a size'}</strong>
+                  </p>
+                  <button type="button" className="size-guide-link" onClick={() => setShowSizeGuide(true)}>Size guide</button>
+                </div>
+                <div className="size-options" role="group" aria-labelledby="size-label">
                   {product.sizes.map(size => (
-                    <button key={size} className={`size-option${selectedSize === size ? ' active' : ''}`} onClick={() => setSelectedSize(size)}>
+                    <button
+                      key={size}
+                      type="button"
+                      className={`size-option${selectedSize === size ? ' active' : ''}`}
+                      onClick={() => { setSelectedSize(size); setMissing(null); }}
+                      aria-pressed={selectedSize === size}
+                    >
                       {size}
                     </button>
                   ))}
                 </div>
-              </>
+                {missing === 'size' && <p className="option-error" role="alert">Please choose a size.</p>}
+              </div>
             )}
 
             {/* Actions */}
-            <div className="product-actions">
+            <div className="product-actions" ref={ctaRef}>
               <div className="qty-selector">
-                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} aria-label="Decrease">−</button>
-                <span className="qty-value">{quantity}</span>
-                <button onClick={() => setQuantity(q => q + 1)} aria-label="Increase">+</button>
+                <button type="button" onClick={() => setQuantity(q => Math.max(1, q - 1))} aria-label="Decrease quantity" disabled={quantity <= 1}>−</button>
+                <span className="qty-value" aria-live="polite" aria-label={`Quantity ${quantity}`}>{quantity}</span>
+                <button type="button" onClick={() => setQuantity(q => q + 1)} aria-label="Increase quantity">+</button>
               </div>
               <div className="product-cta-buttons">
                 <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={product.inStock === false}>
@@ -208,7 +277,7 @@ export default function ProductPage({ params }: Props) {
         </div>
 
         {/* Reviews Section */}
-        <div style={{ marginTop: 64, paddingBottom: 64 }}>
+        <div id="reviews" style={{ marginTop: 64, paddingBottom: 64, scrollMarginTop: 96 }}>
           <div className="reviews-header">
             <span className="reviews-tab">All Reviews ({reviews.length})</span>
           </div>
@@ -271,8 +340,30 @@ export default function ProductPage({ params }: Props) {
         )}
       </div>
 
+      {/* Sticky mobile add-to-cart bar (CSS shows it on small screens only) */}
+      {product.inStock !== false && (
+        <div className={`sticky-cta${ctaVisible ? '' : ' show'}`} aria-hidden={ctaVisible}>
+          <div className="sticky-cta-info">
+            <div className="sticky-cta-name">{product.name}</div>
+            <div className="sticky-cta-price">
+              GH₵{product.price}
+              {(selectedSize || selectedColor) && (
+                <span className="sticky-cta-meta">
+                  {[selectedColor && colorName(selectedColor), selectedSize].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </div>
+          </div>
+          <button type="button" className="add-to-cart-btn" onClick={handleAddToCart} tabIndex={ctaVisible ? -1 : 0}>
+            Add to Cart
+          </button>
+        </div>
+      )}
+
+      {showSizeGuide && <SizeGuide category={product.category} onClose={() => setShowSizeGuide(false)} />}
+
       {/* Toast */}
-      <div className={`toast${showToast ? ' show' : ''}`}>{toastMsg}</div>
+      <div className={`toast${showToast ? ' show' : ''}`} role="status" aria-live="polite">{toastMsg}</div>
     </main>
   );
 }

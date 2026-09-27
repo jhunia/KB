@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
+import Image from 'next/image';
 
 interface Product {
   id: number;
@@ -8,6 +9,7 @@ interface Product {
   price: number;
   originalPrice: number | null;
   rating: number;
+  reviews?: number;
   images: string[];
   inStock: boolean;
 }
@@ -47,10 +49,12 @@ export default function ProductCard({ product, carousel = false }: ProductCardPr
           </div>
         )}
 
-        <img
+        <Image
           src={product.images[0]}
           alt={product.name}
-          loading="lazy"
+          width={600}
+          height={750}
+          sizes="(max-width: 768px) 50vw, 25vw"
           style={product.inStock === false ? { opacity: 0.5, filter: 'grayscale(100%)' } : undefined}
         />
 
@@ -73,17 +77,19 @@ export default function ProductCard({ product, carousel = false }: ProductCardPr
       </div>
 
       <h3 className="product-card-title">{product.name}</h3>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-        <div className="product-card-price" style={{ marginTop: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 4 }}>
+        <div className="product-card-price" style={{ marginTop: 0, minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
           <span className="price-current">GH₵{product.price}</span>
           {product.originalPrice && (
             <span className="price-original">GH₵{product.originalPrice}</span>
           )}
         </div>
-        <div className="product-card-rating" style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span className="stars" style={{ color: '#FFB800' }}>★</span>
-          <span className="rating-text">{product.rating}/5</span>
-        </div>
+        {!!product.reviews && (
+          <div className="product-card-rating" style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto', whiteSpace: 'nowrap' }} aria-label={`Rated ${product.rating} out of 5 from ${product.reviews} reviews`}>
+            <span className="stars" style={{ color: '#FFB800' }} aria-hidden="true">★</span>
+            <span className="rating-text">{product.rating}/5</span>
+          </div>
+        )}
       </div>
     </Link>
   );

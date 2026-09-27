@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import Image from 'next/image';
+import { colorName } from '@/lib/colors';
 
 export default function CartDrawer() {
   const { items, isOpen, closeDrawer, removeFromCart, updateQuantity, cartTotal, getProductById } = useCart();
@@ -37,11 +39,11 @@ export default function CartDrawer() {
               return (
                 <div className="cart-drawer-item" key={`${item.productId}-${item.size}-${item.color}`}>
                   <div className="cart-drawer-item-img">
-                    <img src={product.images[0]} alt={product.name} loading="lazy" />
+                    <Image src={product.images[0]} alt={product.name} width={160} height={160} />
                   </div>
                   <div className="cart-drawer-item-info">
                     <div className="cart-drawer-item-name">{product.name}</div>
-                    <div className="cart-drawer-item-meta">Size: {item.size} | Color: {item.color}</div>
+                    <div className="cart-drawer-item-meta">Size: {item.size} | Color: {colorName(item.color)}</div>
                     <div className="cart-drawer-item-bottom">
                       <span className="cart-drawer-item-price">{formatPrice(product.price * item.quantity)}</span>
                       <div className="qty-control">
@@ -52,6 +54,7 @@ export default function CartDrawer() {
                     </div>
                   </div>
                   <button
+                    className="cart-drawer-remove"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3333', alignSelf: 'flex-start', paddingTop: 4 }}
                     onClick={() => removeFromCart(index)}
                     aria-label="Remove item"
@@ -78,7 +81,7 @@ export default function CartDrawer() {
                   onClick={closeDrawer}
                 >
                   <div className="cart-drawer-fav-img">
-                    <img src={p.images[0]} alt={p.name} loading="lazy" />
+                    <Image src={p.images[0]} alt={p.name} width={104} height={104} />
                   </div>
                   <div className="cart-drawer-fav-info">
                     <div className="cart-drawer-fav-name">{p.name}</div>

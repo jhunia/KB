@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useAuth } from '@/context/AuthContext';
 import type { Order } from '@/lib/types';
+import Image from 'next/image';
+import { colorName } from '@/lib/colors';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -110,11 +112,11 @@ export default function ProfilePage() {
                     return (
                       <div key={i} className="order-item">
                         {product?.images?.[0] && (
-                          <img src={product.images[0]} alt={product?.name} className="order-item-img" />
+                          <Image src={product.images[0]} alt={product?.name || ''} width={120} height={120} className="order-item-img" />
                         )}
                         <div className="order-item-info">
                           <div className="order-item-name">{product?.name || `Product #${item.productId}`}</div>
-                          <div className="order-item-meta">Size: {item.size} | Color: {item.color} | Qty: {item.quantity}</div>
+                          <div className="order-item-meta">Size: {item.size} | Color: {colorName(item.color)} | Qty: {item.quantity}</div>
                         </div>
                         <div style={{ fontWeight: 700, fontSize: 16 }}>
                           GH₵{product ? (product.price * item.quantity).toFixed(2) : '—'}

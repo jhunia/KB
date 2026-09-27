@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import type { Order, Product } from '@/lib/types';
+import Image from 'next/image';
+import { colorName } from '@/lib/colors';
 
 type Tab = 'dashboard' | 'orders' | 'products' | 'customers';
 
@@ -70,6 +72,8 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [promoActive, setPromoActive] = useState(false);
+  const [promoToggling, setPromoToggling] = useState(false);
 
   // Filters
   const [orderSearch, setOrderSearch] = useState('');
@@ -89,6 +93,9 @@ export default function AdminPage() {
   const [selColors, setSelColors] = useState<string[]>([]);
   const [selSizes, setSelSizes] = useState<string[]>([]);
   const [prodSaving, setProdSaving] = useState(false);
+  const [imgUploading, setImgUploading] = useState(0);
+  const [embeddedCount, setEmbeddedCount] = useState(0);
+  const [migrating, setMigrating] = useState(false);
   const [prodForm, setProdForm] = useState({
     name: '', price: '', originalPrice: '', discount: '',
     category: 'tshirts', brand: 'Adidas', brandOther: '',
@@ -98,11 +105,19 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const refresh = useCallback(async () => {
+    const [o, c] = await Promise.all([db.getOrders(), db.getCustomers()]);
+    setOrders(o);
+    setProducts(db.getProducts());
+    setCustomers(c);
+    setEmbeddedCount(db.getProductsWithEmbeddedImages().length);
+  }, []);
+
   useEffect(() => {
     (async () => {
       await db.init();
       // Re-validate role live from DB — never trust the cached value for admin access.
-      // The middleware.ts already blocks at the server, but this handles mid-session role changes.
+      // proxy.ts already blocks at the server, but this handles mid-session role changes.
       const { getClient } = await import('@/lib/supabase/client');
       const supabase = getClient();
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -110,16 +125,11 @@ export default function AdminPage() {
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', authUser.id).single();
       if (!profile || profile.role !== 'admin') { router.push('/'); return; }
       await refresh();
+      const active = await db.getSiteSetting('promo_banner_active', false);
+      setPromoActive(active === true);
       setLoading(false);
     })();
-  }, [router]);
-
-  const refresh = useCallback(async () => {
-    const [o, c] = await Promise.all([db.getOrders(), db.getCustomers()]);
-    setOrders(o);
-    setProducts(db.getProducts());
-    setCustomers(c);
-  }, []);
+  }, [router, refresh]);
 
   /* ── filtered lists ── */
   const filteredOrders = orders.filter(o => {
@@ -196,14 +206,34 @@ export default function AdminPage() {
     setProductModal(true);
   };
 
-  const handleImageFiles = (files: FileList | null) => {
+  // Images are compressed and uploaded to Supabase Storage straight away; only the URL is kept on the product.
+  const handleImageFiles = async (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = e => setProdImages(prev => [...prev, e.target!.result as string]);
-      reader.readAsDataURL(file);
-    });
+    const images = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (!images.length) return;
+    setImgUploading(n => n + images.length);
+    await Promise.all(images.map(async file => {
+      try {
+        const url = await db.uploadProductImage(file);
+        setProdImages(prev => [...prev, url]);
+      } catch (err) {
+        alert(`Could not upload "${file.name}": ${err instanceof Error ? err.message : err}\n\nIf this says the bucket was not found, run app/supabase_storage_patch.sql in the Supabase SQL editor.`);
+      } finally {
+        setImgUploading(n => n - 1);
+      }
+    }));
+  };
+
+  const handleMigrateImages = async () => {
+    setMigrating(true);
+    const { migrated, failed } = await db.migrateEmbeddedImages();
+    setProducts([...db.getProducts()]);
+    setEmbeddedCount(db.getProductsWithEmbeddedImages().length);
+    setMigrating(false);
+    if (failed.length) {
+      alert(`Moved ${migrated} product(s). ${failed.length} failed:\n` + failed.map(f => `#${f.id}: ${f.message}`).join('\n') +
+        '\n\nIf this says the bucket was not found, run app/supabase_storage_patch.sql in the Supabase SQL editor.');
+    }
   };
 
   const handleProdSubmit = async (e: React.FormEvent) => {
@@ -212,16 +242,26 @@ export default function AdminPage() {
     if (selSizes.length === 0) { alert('Select at least one size.'); return; }
     if (prodImages.length === 0) { alert('Add at least one image.'); return; }
 
+    const price = parseFloat(prodForm.price);
+    if (!Number.isFinite(price) || price <= 0) { alert('Enter a selling price greater than 0.'); return; }
+    const originalPrice = prodForm.originalPrice ? parseFloat(prodForm.originalPrice) : null;
+    // Only keep a "was" price if it's actually higher than the selling price
+    const hasMarkdown = originalPrice !== null && Number.isFinite(originalPrice) && originalPrice > price;
+    const discount = prodForm.discount ? parseInt(prodForm.discount) : null;
+
     setProdSaving(true);
     const brand = prodForm.brand === 'Other' ? prodForm.brandOther : prodForm.brand;
     const data = {
-      name: prodForm.name, price: parseFloat(prodForm.price),
-      originalPrice: prodForm.originalPrice ? parseFloat(prodForm.originalPrice) : null,
-      discount: prodForm.discount ? parseInt(prodForm.discount) : null,
+      name: prodForm.name, price,
+      originalPrice: hasMarkdown ? originalPrice : null,
+      discount: hasMarkdown ? (discount && discount > 0 && discount < 100 ? discount : Math.round((1 - price / originalPrice!) * 100)) : null,
       category: prodForm.category, brand, gender: prodForm.gender,
       style: prodForm.style, sizes: selSizes, colors: selColors,
-      colorStock: Object.fromEntries(selColors.map(c => [c, true])),
-      images: prodImages, description: prodForm.description, inStock: true, tag: prodForm.tag,
+      // Keep existing per-colour stock when editing; new colours start in stock
+      colorStock: Object.fromEntries(selColors.map(c => [c, editingProduct?.colorStock?.[c] ?? true])),
+      images: prodImages, description: prodForm.description,
+      inStock: editingProduct ? editingProduct.inStock !== false : true,
+      tag: prodForm.tag,
     };
 
     if (editingProduct) {
@@ -322,6 +362,25 @@ export default function AdminPage() {
         {/* ═══ DASHBOARD ═══ */}
         {tab === 'dashboard' && (
           <div>
+            {/* One-time fix: move base64 images out of the products table */}
+            {embeddedCount > 0 && (
+              <div style={{ ...card, padding: 20, marginBottom: 28, borderColor: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 260px' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{embeddedCount} product(s) have images stored inside the database</div>
+                  <div style={{ fontSize: 12, color: 'var(--gray-600)', marginTop: 4 }}>
+                    This makes every page on the store load slowly. Move them to image storage — it only takes a moment and nothing changes visually.
+                  </div>
+                </div>
+                <button
+                  onClick={handleMigrateImages}
+                  disabled={migrating}
+                  style={{ padding: '10px 20px', background: 'var(--black)', color: 'var(--white)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: migrating ? 'wait' : 'pointer', opacity: migrating ? 0.7 : 1 }}
+                >
+                  {migrating ? 'Moving images…' : 'Move images to storage'}
+                </button>
+              </div>
+            )}
+
             {/* KPI Cards */}
             <div className="admin-kpi-grid">
               {[
@@ -352,6 +411,45 @@ export default function AdminPage() {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {chartData.days.map(d => <div key={d} style={{ flex: 1, textAlign: 'center', fontSize: 11, color: 'var(--gray-600)' }}>{d}</div>)}
+              </div>
+            </div>
+
+            {/* Site Settings Card */}
+            <div style={{ ...card, padding: 24, marginBottom: 28 }}>
+              <h3 style={{ fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Site Settings</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>Promo Banner</div>
+                  <div style={{ fontSize: 12, color: 'var(--gray-600)', marginTop: 2 }}>
+                    Toggle the promotional banner on the homepage
+                  </div>
+                </div>
+                <button
+                  disabled={promoToggling}
+                  onClick={async () => {
+                    setPromoToggling(true);
+                    const next = !promoActive;
+                    const ok = await db.setSiteSetting('promo_banner_active', next);
+                    if (ok) setPromoActive(next);
+                    setPromoToggling(false);
+                  }}
+                  style={{
+                    position: 'relative', width: 52, height: 28, borderRadius: 99,
+                    border: 'none', cursor: promoToggling ? 'not-allowed' : 'pointer',
+                    background: promoActive ? 'var(--black)' : 'var(--gray-300)',
+                    transition: 'background 0.2s ease',
+                    flexShrink: 0,
+                    opacity: promoToggling ? 0.6 : 1,
+                  }}
+                  aria-label={promoActive ? 'Disable promo banner' : 'Enable promo banner'}
+                >
+                  <span style={{
+                    position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%',
+                    background: 'white', transition: 'left 0.2s ease',
+                    left: promoActive ? 28 : 4,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
               </div>
             </div>
 
@@ -448,7 +546,7 @@ export default function AdminPage() {
                     <tr key={p.id} style={{ ...rowHover, background: 'transparent' }} onClick={() => setSelectedProduct(p)}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={td}><img src={p.images[0]} alt={p.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }} /></td>
+                      <td style={td}><Image src={p.images[0]} alt={p.name} width={96} height={96} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }} /></td>
                       <td style={{ ...td, fontWeight: 600, maxWidth: 200 }}>{p.name}</td>
                       <td style={{ ...td, fontWeight: 700 }}>
                         {fmt(p.price)}
@@ -527,10 +625,10 @@ export default function AdminPage() {
                   const p = db.getProductById(item.productId);
                   return (
                     <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--gray-50)' }}>
-                      {p?.images?.[0] && <img src={p.images[0]} alt={p.name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }} />}
+                      {p?.images?.[0] && <Image src={p.images[0]} alt={p.name} width={112} height={112} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }} />}
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: 14 }}>{p?.name || `Product #${item.productId}`}</div>
-                        <div style={{ fontSize: 12, color: 'var(--gray-600)' }}>Size: {item.size} | Color: {item.color} | Qty: {item.quantity}</div>
+                        <div style={{ fontSize: 12, color: 'var(--gray-600)' }}>Size: {item.size} | Color: {colorName(item.color)} | Qty: {item.quantity}</div>
                       </div>
                       <div style={{ fontWeight: 700 }}>{p ? fmt(p.price * item.quantity) : '—'}</div>
                     </div>
@@ -571,7 +669,7 @@ export default function AdminPage() {
           return (
             <div>
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <img src={p.images[0]} alt={p.name} style={{ width: 180, height: 180, objectFit: 'cover', borderRadius: 12 }} />
+                <Image src={p.images[0]} alt={p.name} width={360} height={360} style={{ width: 180, height: 180, objectFit: 'cover', borderRadius: 12 }} />
               </div>
               <div style={{ marginBottom: 16 }}><div style={{ fontSize: 11, color: 'var(--gray-600)', marginBottom: 4 }}>NAME</div><div style={{ fontWeight: 700, fontSize: 18 }}>{p.name}</div></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -636,7 +734,7 @@ export default function AdminPage() {
             </div>
             <div className="form-group">
               <label>Selling Price *</label>
-              <input type="number" step="0.01" value={prodForm.price} onChange={e => setProdForm(f => ({ ...f, price: e.target.value }))} required placeholder="Auto or manual" />
+              <input type="number" step="0.01" min="0.01" value={prodForm.price} onChange={e => setProdForm(f => ({ ...f, price: e.target.value }))} required placeholder="Auto or manual" />
             </div>
           </div>
 
@@ -723,14 +821,14 @@ export default function AdminPage() {
               onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--gray-300)'; handleImageFiles(e.dataTransfer.files); }}
               style={{ border: '2px dashed var(--gray-300)', borderRadius: 12, padding: 24, textAlign: 'center', cursor: 'pointer', fontSize: 14, color: 'var(--gray-600)', marginTop: 8 }}
             >
-              Click or drag & drop images here
+              {imgUploading > 0 ? `Uploading ${imgUploading} image(s)…` : 'Click or drag & drop images here'}
             </div>
             <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={e => handleImageFiles(e.target.files)} />
             {prodImages.length > 0 && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                 {prodImages.map((src, i) => (
                   <div key={i} style={{ position: 'relative' }}>
-                    <img src={src} alt={`img${i}`} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--gray-200)' }} />
+                    <Image src={src} alt={`img${i}`} width={144} height={144} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--gray-200)' }} />
                     <button type="button" onClick={() => setProdImages(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#DC2626', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                   </div>
                 ))}
@@ -746,7 +844,7 @@ export default function AdminPage() {
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 8 }}>
             <button type="button" onClick={() => setProductModal(false)} style={{ padding: '10px 24px', border: '1px solid var(--gray-200)', borderRadius: 8, background: 'none', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-            <button type="submit" disabled={prodSaving} style={{ padding: '10px 28px', background: 'var(--black)', color: 'var(--white)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: prodSaving ? 0.7 : 1 }}>
+            <button type="submit" disabled={prodSaving || imgUploading > 0} style={{ padding: '10px 28px', background: 'var(--black)', color: 'var(--white)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: prodSaving || imgUploading > 0 ? 0.7 : 1 }}>
               {prodSaving ? 'Saving…' : editingProduct ? 'Save Changes' : 'Add Product'}
             </button>
           </div>

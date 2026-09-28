@@ -2,7 +2,7 @@
    KB.ENT Database — Supabase Backend (Next.js port of db.js)
    ============================================ */
 import { getClient } from './supabase/client';
-import type { Product, CartItem, User, Order } from './types';
+import type { Product, CartItem, User, Order, FeaturedReview } from './types';
 import { compressImage, dataUrlToBlob, extensionFor } from './imageUpload';
 
 const PRODUCT_IMAGE_BUCKET = 'product-images';
@@ -183,7 +183,7 @@ class KBDatabase {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       // Send the confirmation link back to whichever deployment the user signed up on
-      options: { data: { name, phone }, emailRedirectTo: `${origin}/auth` }
+      options: { data: { name, phone }, emailRedirectTo: `${origin}/auth/confirm` }
     });
     if (error) return { success: false, message: error.message };
     // Supabase returns a user with no identities (and no error) when the email is already registered
@@ -212,11 +212,20 @@ class KBDatabase {
     this._initialized = false;
   }
 
+  /** Sends the sign-up confirmation email again (for "I didn't get the email") */
+  async resendConfirmation(email: string) {
+    const supabase = getClient();
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${origin}/auth/confirm` } });
+    if (error) return { success: false, message: error.message };
+    return { success: true };
+  }
+
   async requestPasswordReset(email: string) {
     const supabase = getClient();
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth`,
+      redirectTo: `${origin}/auth/confirm`, // see app/auth/confirm/route.ts
     });
     if (error) return { success: false, message: error.message };
     return { success: true };
@@ -342,10 +351,17 @@ class KBDatabase {
     });
     if (error) { console.error('[DB] Order insert error:', error); return null; }
     const items = orderData.items.map(item => ({
-      order_id: orderId, product_id: item.productId, size: item.size, color: item.color, quantity: item.quantity
+      order_id: orderId, product_id: item.productId, size: item.size, color: item.color, quantity: item.quantity,
+      // Price paid per unit, so later price changes don't rewrite order history
+      unit_price: this.getProductById(item.productId)?.price ?? null,
     }));
     if (items.length > 0) {
-      const { error: itemsErr } = await supabase.from('order_items').insert(items);
+      let { error: itemsErr } = await supabase.from('order_items').insert(items);
+      // Database not yet patched with the unit_price column (app/supabase_admin_patch.sql) — save without it
+      if (itemsErr && /unit_price/.test(itemsErr.message)) {
+        ({ error: itemsErr } = await supabase.from('order_items').insert(
+          items.map(i => ({ order_id: i.order_id, product_id: i.product_id, size: i.size, color: i.color, quantity: i.quantity }))));
+      }
       if (itemsErr) console.error('[DB] Order items error:', itemsErr);
     }
     return { ...orderData, id: orderId, date: new Date().toISOString(), status, customer: customerInfo };
@@ -440,7 +456,10 @@ class KBDatabase {
       subtotal: Number(o.subtotal), discount: Number(o.discount_amount), deliveryFee: Number(o.delivery_fee),
       paymentMethod: o.payment_method as string, paymentRef: o.payment_ref as string | null,
       customer: o.customer_info as Order['customer'],
-      items: ((o.order_items as Record<string, unknown>[]) || []).map(i => ({ productId: i.product_id as number, size: i.size as string, color: i.color as string, quantity: i.quantity as number }))
+      items: ((o.order_items as Record<string, unknown>[]) || []).map(i => ({
+        productId: i.product_id as number, size: i.size as string, color: i.color as string, quantity: i.quantity as number,
+        unitPrice: i.unit_price != null ? Number(i.unit_price) : undefined,
+      }))
     }));
   }
 
@@ -451,9 +470,12 @@ class KBDatabase {
       .eq('user_id', this._currentUser.id).order('created_at', { ascending: false });
     return (data || []).map((o: Record<string, unknown>) => ({
       id: o.id as string, date: o.created_at as string, status: o.status as string,
-      total: Number(o.total),
+      total: Number(o.total), discount: Number(o.discount_amount || 0), deliveryFee: Number(o.delivery_fee || 0),
       customer: o.customer_info as Order['customer'],
-      items: ((o.order_items as Record<string, unknown>[]) || []).map(i => ({ productId: i.product_id as number, size: i.size as string, color: i.color as string, quantity: i.quantity as number }))
+      items: ((o.order_items as Record<string, unknown>[]) || []).map(i => ({
+        productId: i.product_id as number, size: i.size as string, color: i.color as string, quantity: i.quantity as number,
+        unitPrice: i.unit_price != null ? Number(i.unit_price) : undefined,
+      }))
     }));
   }
 
@@ -513,10 +535,10 @@ class KBDatabase {
 
   // ---- PRODUCT IMAGES (Supabase Storage) ----
   /** Compresses and uploads an image to the `product-images` bucket, returning its public URL. */
-  async uploadProductImage(file: Blob): Promise<string> {
+  async uploadProductImage(file: Blob, folder = 'products'): Promise<string> {
     const supabase = getClient();
     const blob = await compressImage(file);
-    const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extensionFor(blob.type)}`;
+    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extensionFor(blob.type)}`;
     const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, blob, {
       contentType: blob.type,
       cacheControl: '31536000',
@@ -550,12 +572,23 @@ class KBDatabase {
     return { migrated, failed };
   }
 
-  async deleteProduct(productId: number): Promise<boolean> {
+  /**
+   * Deletes a product only if no order contains it. The database cascades product
+   * deletes into order_items, so deleting an ordered product would erase it from
+   * customers' order history — those products should be marked out of stock instead.
+   */
+  async deleteProduct(productId: number): Promise<{ success: boolean; message?: string }> {
     const supabase = getClient();
+    const { count, error: countError } = await supabase
+      .from('order_items').select('id', { count: 'exact', head: true }).eq('product_id', productId);
+    if (countError) return { success: false, message: countError.message };
+    if (count && count > 0) {
+      return { success: false, message: `This product appears in ${count} order line(s). Deleting it would remove it from those orders, so mark it Out of Stock instead.` };
+    }
     const { error } = await supabase.from('products').delete().eq('id', productId);
-    if (error) { console.error('[DB] Delete product error:', error); return false; }
+    if (error) { console.error('[DB] Delete product error:', error); return { success: false, message: error.message }; }
     this._productsCache = this._productsCache?.filter(p => p.id !== productId) || [];
-    return true;
+    return { success: true };
   }
 
   async getCustomers() {
@@ -661,14 +694,35 @@ class KBDatabase {
 
   // ---- TESTIMONIALS ----
 
-  getTestimonials() {
-    return [
-      { name: "Sarah M.", text: "The quality of these clothes is unmatched.", rating: 5, verified: true },
-      { name: "Alex K.", text: "Finding my style was never easier. The modern designs perfectly match what I was looking for.", rating: 5, verified: true },
-      { name: "James L.", text: "As someone who appreciates craftsmanship, KB.ENT delivers on every front. Highly recommended.", rating: 4.8, verified: true },
-      { name: "Elena R.", text: "Super fast shipping and the packaging felt so premium. Will definitely shop here again.", rating: 5, verified: true },
-      { name: "David O.", text: "The formal suits are incredibly comfortable. Best purchase for my business meetings.", rating: 4.9, verified: false }
-    ];
+  /**
+   * Real customer reviews for the homepage (4★ and up, newest first), plus store-wide
+   * rating stats. Replaces the old hard-coded testimonials, which weren't real customers.
+   */
+  async getFeaturedReviews(limit = 12): Promise<{ reviews: FeaturedReview[]; average: number; count: number }> {
+    const supabase = getClient();
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id, rating, body, created_at, verified_purchase, product_id, profiles(name)')
+      .gte('rating', 4)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) console.error('[DB] Featured reviews error:', error);
+    // Show "Kwame M." rather than a customer's full name
+    const shortName = (full: string) => {
+      const [first, ...rest] = (full || 'Customer').trim().split(/\s+/);
+      return rest.length ? `${first} ${rest[rest.length - 1][0].toUpperCase()}.` : first;
+    };
+    const reviews = (data || []).filter(r => (r.body as string)?.trim()).map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      name: shortName(((r.profiles as { name?: string } | null)?.name) || 'Customer'),
+      text: r.body as string,
+      rating: r.rating as number,
+      verified: !!r.verified_purchase,
+      date: r.created_at as string,
+      product: this.getProductById(r.product_id as number) || null,
+    }));
+    const totals = this.getProducts().reduce((t, p) => ({ sum: t.sum + p.rating * p.reviews, count: t.count + p.reviews }), { sum: 0, count: 0 });
+    return { reviews, average: totals.count ? Math.round((totals.sum / totals.count) * 10) / 10 : 0, count: totals.count };
   }
 }
 

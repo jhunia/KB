@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/db';
 
 type AuthView = 'login' | 'signup' | 'forgot' | 'reset' | 'confirm';
 
@@ -92,21 +93,49 @@ function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const [prefilledEmail] = useState(() => (params.get('signup') === 'true' && params.get('email')) || '');
   const [confirmedEmail, setConfirmedEmail] = useState('');
+  // Seconds until "Resend the email" is allowed again (Supabase rate-limits confirmation emails)
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  const handleResend = async () => {
+    if (!confirmedEmail || resendIn > 0) return;
+    setLoading(true);
+    const res = await db.resendConfirmation(confirmedEmail);
+    setLoading(false);
+    if (res.success) {
+      setAlert({ msg: '✅ Sent again — check your inbox and spam folder.', type: 'success' });
+      setResendIn(60);
+    } else {
+      setAlert({ msg: /rate|seconds|limit/i.test(res.message || '') ? 'Too many emails sent — please wait a minute and try again.' : (res.message || 'Could not resend the email.'), type: 'error' });
+      setResendIn(60);
+    }
+  };
   // An auth code in the URL means we arrived from an email link (signup confirmation or password reset)
   const [arrivedWithCode] = useState(() => params.has('code'));
 
+  // Reset links go through /auth/confirm, which signs the user in and sends them here with ?mode=reset
+  const [resetMode, setResetMode] = useState(() => params.get('mode') === 'reset');
+  const recovering = passwordRecovery || resetMode;
+  const resetSessionMissing = resetMode && initialized && !user;
+
   const redirectUrl = safeRedirect(params.get('redirect'));
   // A password-reset link signs the user in, but they must set a new password before going anywhere
-  const currentView: AuthView = passwordRecovery ? 'reset' : view;
+  const currentView: AuthView = resetSessionMissing ? 'forgot' : recovering ? 'reset' : view;
 
   // Single place that sends signed-in users onward (after login, signup, email confirmation, or an existing session)
   useEffect(() => {
-    if (!user || passwordRecovery) return;
+    if (!user || recovering) return;
     router.replace(user.role === 'admin' ? '/admin' : redirectUrl);
-  }, [user, passwordRecovery, router, redirectUrl]);
+  }, [user, recovering, router, redirectUrl]);
 
-  // Email link opened but no session came out of it (e.g. confirmed in a different browser/app)
-  const linkNotice = arrivedWithCode && initialized && !user && !passwordRecovery && !alert
+  // Email link opened but no session came out of it (older-style links opened in a different browser/app)
+  const linkNotice = resetSessionMissing && !alert
+    ? { msg: 'That reset link has expired or was already used. Enter your email to get a new one.', type: 'error' as const }
+    : arrivedWithCode && initialized && !user && !recovering && !alert
     ? { msg: 'Your email link was opened, but we couldn’t sign you in automatically (this happens if it was opened in a different browser). If you just confirmed your email, please log in below.', type: 'success' as const }
     : null;
   const recoveryNotice = currentView === 'reset' && !alert ? { msg: 'Enter your new password below.', type: 'success' as const } : null;
@@ -152,6 +181,7 @@ function AuthPageInner() {
         // Email confirmation is required — show a holding screen
         setConfirmedEmail(email);
         setAlert(null);
+        setResendIn(60); // the first email was just sent
         setView('confirm');
       } else {
         showAlert('Account created — redirecting…', 'success'); // the redirect effect takes it from here
@@ -196,6 +226,7 @@ function AuthPageInner() {
       // Sign out the temporary recovery session so the user logs in fresh with the new password
       await logout();
       finishPasswordRecovery();
+      setResetMode(false);
       router.replace('/auth');
       setView('login');
       showAlert('✅ Password updated! Please log in with your new password.', 'success');
@@ -248,18 +279,32 @@ function AuthPageInner() {
                 <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 20, wordBreak: 'break-all' }}>
                   {confirmedEmail}
                 </p>
-                <p className="auth-desc" style={{ marginBottom: 28 }}>
-                  Click the link in that email to activate your account. You&apos;ll be signed in automatically.
+                <p className="auth-desc" style={{ marginBottom: 20 }}>
+                  Tap the link in that email to activate your account — you&apos;ll be signed in automatically
+                  (open it on this device and browser).
                   <br /><br />
-                  Don&apos;t see it? Check your <strong>spam or junk folder</strong>.
+                  Don&apos;t see it within a couple of minutes? Check your <strong>spam or junk folder</strong>.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginBottom: 10 }}
+                  disabled={resendIn > 0 || loading}
+                >
+                  {resendIn > 0 ? `Resend email in ${resendIn}s` : 'Resend the email'}
+                </button>
                 <button
                   onClick={() => { setView('login'); setAlert(null); }}
                   className="btn btn-outline"
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', marginBottom: 16 }}
                 >
                   Back to Login
                 </button>
+                <p className="auth-desc" style={{ fontSize: 13 }}>
+                  Wrong email? <button type="button" onClick={() => { setView('signup'); setAlert(null); }} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', padding: 0 }}>Sign up again</button>
+                  {' '}· Or <Link href="/" style={{ textDecoration: 'underline', fontWeight: 600 }}>keep shopping</Link> — you can check out as a guest.
+                </p>
               </div>
             )}
 

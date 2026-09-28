@@ -4,6 +4,21 @@
    or plain names; shoppers should see "Black", not "#000000".
    ============================================ */
 
+/** Colours offered in the admin product form. Products store the *name* (e.g. "Light Blue"). */
+export const PRODUCT_COLORS: Array<{ name: string; hex: string }> = [
+  { name: 'Black', hex: '#000000' }, { name: 'White', hex: '#f5f5f5' },
+  { name: 'Grey', hex: '#808080' }, { name: 'Navy Blue', hex: '#000080' },
+  { name: 'Red', hex: '#FF0000' }, { name: 'Burgundy', hex: '#800020' },
+  { name: 'Blue', hex: '#0000FF' }, { name: 'Light Blue', hex: '#ADD8E6' },
+  { name: 'Green', hex: '#008000' }, { name: 'Olive', hex: '#808000' },
+  { name: 'Khaki', hex: '#F0E68C' }, { name: 'Beige', hex: '#F5F5DC' },
+  { name: 'Brown', hex: '#A52A2A' }, { name: 'Tan', hex: '#D2B48C' },
+  { name: 'Pink', hex: '#FFC0CB' }, { name: 'Purple', hex: '#800080' },
+  { name: 'Orange', hex: '#FFA500' }, { name: 'Yellow', hex: '#FFFF00' },
+];
+const BY_NAME = new Map(PRODUCT_COLORS.map(c => [c.name.toLowerCase(), c]));
+const BY_HEX = new Map(PRODUCT_COLORS.map(c => [c.hex.toLowerCase(), c]));
+
 const PALETTE: Array<[string, [number, number, number]]> = [
   ['Black', [0, 0, 0]],
   ['Charcoal', [54, 69, 79]],
@@ -50,6 +65,8 @@ function hexToRgb(hex: string): [number, number, number] | null {
 
 /** "#000000" → "Black"; "navy blue" → "Navy Blue"; unknown hex → nearest named colour. */
 export function colorName(value: string): string {
+  const known = BY_HEX.get(value.trim().toLowerCase()) || BY_NAME.get(value.trim().toLowerCase());
+  if (known) return known.name;
   const rgb = hexToRgb(value);
   if (!rgb) return value.replace(/\b\w/g, c => c.toUpperCase());
   let best = PALETTE[0][0];
@@ -62,9 +79,15 @@ export function colorName(value: string): string {
   return best;
 }
 
-/** CSS colour for a swatch; very light colours get a faint tint so they stay visible on white. */
+/**
+ * CSS colour for a swatch. Admin-created products store names like "Light Blue",
+ * which browsers don't understand (multi-word names aren't CSS colours), so map
+ * them to their hex first. Very light colours get a faint tint to stay visible on white.
+ */
 export function swatchColor(value: string): string {
-  const v = value.toLowerCase();
+  const v = value.trim().toLowerCase();
+  const known = BY_NAME.get(v);
+  if (known) return known.hex;
   if (v === 'white' || v === '#ffffff' || v === '#fff') return '#f5f5f5';
   if (v === 'beige') return '#f5f0e8';
   return v;

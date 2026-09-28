@@ -64,6 +64,8 @@ export interface OrderItem {
   size: string;
   color: string;
   quantity: number;
+  /** Price per unit when the order was placed (older orders don't have it) */
+  unitPrice?: number;
 }
 
 export interface Review {
@@ -76,9 +78,13 @@ export interface Review {
   date: string;
 }
 
-export interface Testimonial {
-  name: string;
+/** A real customer review shown on the homepage */
+export interface FeaturedReview {
+  id: string;
+  name: string;       // first name + last initial
   text: string;
   rating: number;
-  verified: boolean;
+  verified: boolean;  // bought and received the product
+  date: string;
+  product: Product | null;
 }

@@ -64,7 +64,7 @@ export default function NotFound() {
         color: 'var(--gray-400)',
         textTransform: 'uppercase',
       }}>
-        KB.ENT
+        stress_d
       </p>
     </main>
   );

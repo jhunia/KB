@@ -1,5 +1,5 @@
 /* ============================================
-   KB.ENT Database — Supabase Backend (Next.js port of db.js)
+   stress_d Database — Supabase Backend (Next.js port of db.js)
    ============================================ */
 import { getClient } from './supabase/client';
 import type { Product, CartItem, User, Order, FeaturedReview } from './types';

@@ -84,7 +84,7 @@ function ProfileInner() {
         <div className="profile-header">
           <div className="profile-avatar" aria-hidden="true">{getInitials(user.name || user.email)}</div>
           <div className="profile-info">
-            <h1>{user.name || 'KB Member'}</h1>
+            <h1>{user.name || 'stress_d member'}</h1>
             <p>{user.email}</p>
             {user.phone && <p>{user.phone}</p>}
           </div>
@@ -93,7 +93,7 @@ function ProfileInner() {
 
         {params.get('welcome') && (
           <div className="profile-thanks" role="status">
-            <strong>🎉 Welcome to KB.ENT — your email is confirmed and you&apos;re signed in.</strong>
+            <strong>🎉 Welcome to stress_d — your email is confirmed and you&apos;re signed in.</strong>
             <span>Your orders and wishlist will be saved to this account.</span>
           </div>
         )}

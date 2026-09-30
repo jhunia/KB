@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { FeedbackProvider } from '@/components/admin/Feedback';
 import { orderViewCounts } from '@/lib/admin';
+import Logo from '@/components/ui/Logo';
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></> },
@@ -51,7 +52,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <FeedbackProvider>
       <div className={`adm-shell${navOpen ? ' nav-open' : ''}`}>
         <aside className="adm-sidebar" aria-label="Admin navigation">
-          <Link href="/admin" className="adm-logo" onClick={() => setNavOpen(false)}>KB.ENT <span>Admin</span></Link>
+          <Link href="/admin" className="adm-logo" onClick={() => setNavOpen(false)} aria-label="stress_d admin home"><Logo size={24} /><span className="adm-logo-tag">Admin</span></Link>
           <nav>
             {NAV.map(item => (
               <Link

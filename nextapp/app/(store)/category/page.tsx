@@ -7,12 +7,13 @@ import ProductCard from '@/components/ui/ProductCard';
 import ProductCardSkeleton from '@/components/ui/ProductCardSkeleton';
 import type { Product } from '@/lib/types';
 import { getBrandLogo } from '@/lib/brandLogos';
+import { normalizeSize, sizeGroups } from '@/lib/sizes';
 
 const PER_PAGE = 9;
 const PRICE_SLIDER_MAX = 1000;
-const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const ALL_STYLES = ['casual', 'formal', 'party', 'gym'];
-const ALL_CATEGORIES = ['tshirts', 'shirts', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'sandals', 'accessories'];
+// Preferred display order; any other category that products use is added after these
+const CATEGORY_ORDER = ['tshirts', 'shirts', 'jerseys', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'sandals', 'accessories'];
 
 export default function CategoryPage() {
   return (
@@ -66,7 +67,7 @@ function CategoryPageInner() {
     if (style && !params.get('style')) result = result.filter(p => p.style?.toLowerCase() === style);
     if (params.get('style')) result = result.filter(p => p.style?.toLowerCase() === params.get('style'));
     if (selCategories.length) result = result.filter(p => selCategories.includes(p.category));
-    if (selSizes.length) result = result.filter(p => selSizes.some(s => p.sizes.includes(s)));
+    if (selSizes.length) result = result.filter(p => p.sizes.some(s => selSizes.includes(normalizeSize(s))));
     if (selStyles.length && !params.get('style')) result = result.filter(p => selStyles.includes(p.style?.toLowerCase() || ''));
     // Slider at its maximum means "any price", so expensive items are never silently hidden
     if (priceMax < PRICE_SLIDER_MAX) result = result.filter(p => p.price <= priceMax);
@@ -84,6 +85,13 @@ function CategoryPageInner() {
   const page = pageState.list === filtered ? pageState.page : 1;
   const setPage = (next: number | ((p: number) => number)) =>
     setPageState({ list: filtered, page: typeof next === 'function' ? next(page) : next });
+
+  // Filter options come from the catalogue itself, so every product can be reached
+  const sizeOptions = useMemo(() => sizeGroups(products.flatMap(p => p.sizes)), [products]);
+  const categoryOptions = useMemo(() => {
+    const used = new Set(products.map(p => p.category).filter(Boolean));
+    return [...CATEGORY_ORDER.filter(c => used.has(c)), ...[...used].filter(c => !CATEGORY_ORDER.includes(c)).sort()];
+  }, [products]);
 
   const isBrandsView = params.get('filter') === 'brands';
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -168,10 +176,10 @@ function CategoryPageInner() {
               <div className="filter-group">
                 <div className="filter-group-title">Categories</div>
                 <div className="filter-group-content">
-                  {ALL_CATEGORIES.map(cat => (
+                  {categoryOptions.map(cat => (
                     <label key={cat} className="filter-check">
                       <input type="checkbox" checked={selCategories.includes(cat)} onChange={() => toggleFilter(selCategories, cat, setSelCategories)} />
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      {cat === 'tshirts' ? 'T-shirts' : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </label>
                   ))}
                 </div>
@@ -194,11 +202,16 @@ function CategoryPageInner() {
               <div className="filter-group">
                 <div className="filter-group-title">Size</div>
                 <div className="filter-group-content">
-                  <div className="size-pills">
-                    {ALL_SIZES.map(s => (
-                      <button key={s} className={`size-pill${selSizes.includes(s) ? ' active' : ''}`} onClick={() => toggleFilter(selSizes, s, setSelSizes)}>{s}</button>
-                    ))}
-                  </div>
+                  {sizeOptions.map(group => (
+                    <div key={group.label} className="size-group">
+                      {sizeOptions.length > 1 && <div className="size-group-label">{group.label}</div>}
+                      <div className="size-pills">
+                        {group.sizes.map(s => (
+                          <button key={s} type="button" aria-pressed={selSizes.includes(s)} className={`size-pill${selSizes.includes(s) ? ' active' : ''}`} onClick={() => toggleFilter(selSizes, s, setSelSizes)}>{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

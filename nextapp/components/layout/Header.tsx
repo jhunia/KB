@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import Logo from '@/components/ui/Logo';
 
 // Whether the top banner was dismissed lives in localStorage; read it as an
 // external store so SSR renders the banner and the client hides it if closed.
@@ -81,7 +82,7 @@ export default function Header() {
             <span /><span /><span />
           </button>
 
-          <Link href="/" className="logo">KB.ENT</Link>
+          <Link href="/" className="logo" aria-label="stress_d home"><Logo /></Link>
 
           <nav className={`nav-links${mobileOpen ? ' mobile-open' : ''}`} ref={navRef} id="navLinks">
             <Link href="/category" onClick={() => setMobileOpen(false)}>Shop</Link>

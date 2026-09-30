@@ -12,7 +12,7 @@ export default function TermsPage() {
         <p className="legal-updated">Last updated: January 1, 2025</p>
         <div className="legal-section">
           <h2>1. Acceptance of Terms</h2>
-          <p>By accessing and using KB.ENT, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this service.</p>
+          <p>By accessing and using stress_d, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this service.</p>
         </div>
         <div className="legal-section">
           <h2>2. Products &amp; Pricing</h2>
@@ -28,11 +28,11 @@ export default function TermsPage() {
         </div>
         <div className="legal-section">
           <h2>5. Intellectual Property</h2>
-          <p>All content on this site, including images, logos, and text, is the property of KB.ENT and is protected by applicable intellectual property laws.</p>
+          <p>All content on this site, including images, logos, and text, is the property of stress_d and is protected by applicable intellectual property laws.</p>
         </div>
         <div className="legal-section">
           <h2>6. Limitation of Liability</h2>
-          <p>KB.ENT shall not be liable for any indirect, incidental, or consequential damages arising from the use of our products or services.</p>
+          <p>stress_d shall not be liable for any indirect, incidental, or consequential damages arising from the use of our products or services.</p>
         </div>
         <div className="legal-section">
           <h2>7. Contact</h2>

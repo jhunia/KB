@@ -44,7 +44,7 @@ export type OrderViewKey = (typeof ORDER_VIEWS)[number]['key'];
 
 /* ---------- Catalogue options ---------- */
 
-export const CATEGORIES = ['tshirts', 'shirts', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'sandals', 'accessories'];
+export const CATEGORIES = ['tshirts', 'shirts', 'jerseys', 'jeans', 'hoodies', 'jackets', 'suits', 'shoes', 'sandals', 'accessories'];
 export const categoryLabel = (c: string) => (c === 'tshirts' ? 'T-shirts' : c ? c.charAt(0).toUpperCase() + c.slice(1) : '—');
 export const SIZE_PRESETS: Record<string, string[]> = {
   clothing: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],

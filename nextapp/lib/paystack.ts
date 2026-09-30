@@ -64,7 +64,7 @@ export function initPaystackPayment(
     amount,
     currency: 'GHS',
     reference,
-    label: 'KB.ENT',
+    label: 'stress_d',
     metadata: {
       custom_fields: [
         { display_name: 'Customer Name', variable_name: 'customer_name', value: order.customer.name },

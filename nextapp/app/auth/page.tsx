@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/db';
+import Logo from '@/components/ui/Logo';
 
 type AuthView = 'login' | 'signup' | 'forgot' | 'reset' | 'confirm';
 
@@ -239,7 +240,7 @@ function AuthPageInner() {
     <>
       <header className="header">
         <div className="header-inner" style={{ justifyContent: 'center' }}>
-          <Link href="/" className="logo">KB.ENT</Link>
+          <Link href="/" className="logo" aria-label="stress_d home"><Logo /></Link>
         </div>
       </header>
 
@@ -312,7 +313,7 @@ function AuthPageInner() {
             {currentView === 'login' && (
               <form className="auth-form" onSubmit={handleLogin}>
                 <h2 className="auth-title">Welcome Back</h2>
-                <p className="auth-desc">Enter your details to access your KB account.</p>
+                <p className="auth-desc">Enter your details to access your stress_d account.</p>
                 <div className="form-group">
                   <label>Email</label>
                   <input name="email" type="email" placeholder="you@example.com" required />
@@ -349,7 +350,7 @@ function AuthPageInner() {
             {currentView === 'reset' && (
               <form className="auth-form" onSubmit={handleReset}>
                 <h2 className="auth-title">Set New Password</h2>
-                <p className="auth-desc">Choose a strong new password for your KB.ENT account.</p>
+                <p className="auth-desc">Choose a strong new password for your stress_d account.</p>
                 <PasswordInput name="newPassword" label="New Password" placeholder="At least 6 characters" />
                 <PasswordInput name="confirmPassword" label="Confirm New Password" placeholder="Repeat your new password" />
                 <button type="submit" className="auth-btn" disabled={loading}>{loading ? 'Updating…' : 'Update Password'}</button>
@@ -360,7 +361,7 @@ function AuthPageInner() {
             {currentView === 'signup' && (
               <form className="auth-form" onSubmit={handleSignup}>
                 <h2 className="auth-title">Create Account</h2>
-                <p className="auth-desc">Join KB to start managing your orders and wishlist.</p>
+                <p className="auth-desc">Join stress_d to start managing your orders and wishlist.</p>
                 <div className="form-group">
                   <label>Full Name</label>
                   <input name="name" type="text" placeholder="John Doe" required />

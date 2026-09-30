@@ -493,7 +493,7 @@ export default function CartPage() {
               Your order is confirmed!
             </h2>
             <p style={{ color: 'var(--gray-600)', fontSize: 15, marginBottom: guestOrderId ? 12 : 24, lineHeight: 1.6 }}>
-              Thank you for shopping with <strong>KB.ENT</strong>. We&apos;ll call you shortly to arrange delivery.
+              Thank you for shopping with <strong>stress_d</strong>. We&apos;ll call you shortly to arrange delivery.
             </p>
             {guestOrderId && (
               <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 24 }}>

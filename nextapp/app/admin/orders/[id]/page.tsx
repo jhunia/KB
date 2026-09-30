@@ -193,8 +193,8 @@ export default function OrderDetailPage() {
             {c.address && <p style={{ marginTop: 10 }}>{c.address}</p>}
             <div className="adm-contact-actions">
               {c.phone && <a className="adm-btn adm-btn-sm" href={`tel:${c.phone}`}>Call</a>}
-              {c.phone && <a className="adm-btn adm-btn-sm" href={`https://wa.me/${whatsappNumber(c.phone)}?text=${encodeURIComponent(`Hi ${c.name?.split(' ')[0] || ''}, this is KB.ENT about your order ${order.id}.`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
-              {c.email && <a className="adm-btn adm-btn-sm" href={`mailto:${c.email}?subject=${encodeURIComponent(`Your KB.ENT order ${order.id}`)}`}>Email</a>}
+              {c.phone && <a className="adm-btn adm-btn-sm" href={`https://wa.me/${whatsappNumber(c.phone)}?text=${encodeURIComponent(`Hi ${c.name?.split(' ')[0] || ''}, this is stress_d about your order ${order.id}.`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+              {c.email && <a className="adm-btn adm-btn-sm" href={`mailto:${c.email}?subject=${encodeURIComponent(`Your stress_d order ${order.id}`)}`}>Email</a>}
               {c.address && <a className="adm-btn adm-btn-sm" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`} target="_blank" rel="noopener noreferrer">Map</a>}
             </div>
             {c.email && (
@@ -210,7 +210,7 @@ export default function OrderDetailPage() {
               <select id="status" className="adm-select" value={order.status} disabled={busy} onChange={e => changeStatus(e.target.value)}>
                 {ORDER_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </select>
-              <span className="adm-hint">Processing, Shipped and Delivered send the customer an email.</span>
+              <span className="adm-hint">Customers see this status in their account. Email updates start once the email functions are deployed.</span>
             </div>
           </Card>
 

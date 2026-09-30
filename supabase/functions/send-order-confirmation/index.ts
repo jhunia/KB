@@ -67,12 +67,12 @@ serve(async (req) => {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Order Confirmation - KB.ENT</title>
+        <title>Order Confirmation - stress_d</title>
       </head>
       <body style="font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:20px;">
         <div style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;">
           <div style="background-color:#000;padding:24px;text-align:center;">
-            <h1 style="color:#fff;margin:0;font-size:28px;">KB.ENT</h1>
+            <h1 style="color:#fff;margin:0;font-size:28px;">stress_d</h1>
           </div>
           <div style="padding:32px;">
             <h2 style="color:#333;margin:0 0 8px 0;">Order Confirmed!</h2>
@@ -93,7 +93,7 @@ serve(async (req) => {
             </div>
           </div>
           <div style="background-color:#000;padding:16px;text-align:center;">
-            <p style="color:#fff;margin:0;font-size:14px;">&copy; 2026 KB.ENT. All rights reserved.</p>
+            <p style="color:#fff;margin:0;font-size:14px;">&copy; 2026 stress_d. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -109,7 +109,7 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'KB.ENT <orders@kb.ent>',
+          from: 'stress_d <orders@kb.ent>', // TODO: use an address on your own domain once email sending is set up
           to: customerEmail,
           subject: `Order Confirmation - ${order.id}`,
           html: emailHtml

@@ -61,7 +61,7 @@ export default function CustomersPage() {
       ...visible.map(c => [c.name, c.email, c.phone, c.registered ? 'Registered' : 'Guest', c.orders, c.spend.toFixed(2), c.lastOrder ? fmtDate(c.lastOrder) : '', c.joined ? fmtDate(c.joined) : ''])];
     const url = URL.createObjectURL(new Blob([rows.map(r => r.map(esc).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `kbent-customers-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    a.href = url; a.download = `stressd-customers-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 

@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const p = await fetchProduct(id);
   if (!p) return { title: 'Product' };
-  const description = (p.description?.trim() || `Shop ${p.name} at KB.ENT.`) + ` GH₵${Number(p.price).toFixed(2)}.`;
+  const description = (p.description?.trim() || `Shop ${p.name} at stress_d.`) + ` GH₵${Number(p.price).toFixed(2)}.`;
   // Embedded (data:) images can't be used in link previews
   const image = p.images?.find(src => !src.startsWith('data:'));
   return {

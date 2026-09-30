@@ -3,8 +3,8 @@ import './admin.css';
 import AdminShell from '@/components/admin/AdminShell';
 
 export const metadata: Metadata = {
-  // "absolute" stops the store's "| KB.ENT" suffix being added on top
-  title: { absolute: 'Dashboard | KB.ENT Admin', template: '%s | KB.ENT Admin' },
+  // "absolute" stops the store's "| stress_d" suffix being added on top
+  title: { absolute: 'Dashboard | stress_d admin', template: '%s | stress_d admin' },
   robots: { index: false, follow: false }, // keep the admin out of search engines
 };
 

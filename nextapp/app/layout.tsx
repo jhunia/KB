@@ -8,16 +8,16 @@ import { Analytics } from '@vercel/analytics/react';
 export const metadata: Metadata = {
   // Absolute base for link-preview images (set NEXT_PUBLIC_SITE_URL once you have a custom domain)
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://kb-wheat-chi.vercel.app'),
-  // Each page sets its own title; "%s" becomes e.g. "Leather Jacket | KB.ENT"
+  // Each page sets its own title; "%s" becomes e.g. "Leather Jacket | stress_d"
   title: {
-    default: 'KB.ENT — We Have Clothes That Match Your Style',
-    template: '%s | KB.ENT',
+    default: 'stress_d — Clothes That Match Your Style',
+    template: '%s | stress_d',
   },
-  description: 'KB is your one-stop destination for premium fashion. Discover the latest trends in casual, formal, and streetwear clothing.',
+  description: 'stress_d is your one-stop destination for premium fashion. Discover the latest trends in casual, formal, and streetwear clothing.',
   openGraph: {
-    siteName: 'KB.ENT',
+    siteName: 'stress_d',
     type: 'website',
-    images: ['/assets/images/landing_page.jpg'],
+    images: [{ url: '/brand/og-image.png', width: 1200, height: 630, alt: 'stress_d — est. 2026' }],
   },
 };
 

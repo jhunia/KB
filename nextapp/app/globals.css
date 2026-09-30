@@ -1,5 +1,5 @@
 /* ============================================
-   KB.ENT — Full Stylesheet (Next.js)
+   stress_d — Full Stylesheet (Next.js)
    Fonts: Satoshi (body), Outfit (display/headers)
    ============================================ */
 
@@ -807,3 +807,49 @@ section { padding: 64px 0; }
 .order-progress li.done::after { background: #047857; }
 .order-progress li[aria-current="step"]::before { box-shadow: 0 0 0 4px #D1FAE5; }
 @media (max-width: 480px) { .order-progress li { font-size: 11px; } }
+
+/* ============================================ FOOTER + HELP PAGES */
+.footer-brand-name { margin-bottom: 4px; }
+.footer-est { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gray-600); margin-bottom: 14px; }
+.footer-social a { width: 36px; height: 36px; }
+.legal-back { color: var(--gray-600); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 24px; padding: 6px 0; }
+.legal-link { text-decoration: underline; text-underline-offset: 3px; font-weight: 600; color: var(--black); }
+.help-contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.help-contact-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; border: 1px solid var(--gray-200); border-radius: var(--radius-md); background: var(--white); }
+.help-contact-card:hover { border-color: var(--black); opacity: 1; }
+.help-contact-card span { color: var(--gray-600); font-size: 14px; overflow-wrap: anywhere; }
+.help-note { font-size: 14px; color: var(--gray-600); margin-bottom: 40px; }
+.legal-section .help-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.help-links a { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--gray-50); border: 1px solid var(--gray-100); height: 100%; }
+.help-links a:hover { border-color: var(--gray-300); opacity: 1; }
+.help-links span { font-size: 14px; color: var(--gray-600); }
+.help-cta { margin-top: 40px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.faq-section { scroll-margin-top: 96px; }
+.faq-item { padding: 16px 0; border-bottom: 1px solid var(--gray-200); scroll-margin-top: 96px; }
+.faq-item h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.legal-section .faq-answer { margin-bottom: 0; }
+.faq-item:target { background: #FFFBEB; box-shadow: 0 0 0 8px #FFFBEB; border-radius: 4px; }
+@media (max-width: 768px) {
+  .legal-page { padding: 40px 0; }
+  .legal-container h1 { font-size: 34px; }
+}
+
+.size-group + .size-group { margin-top: 12px; }
+.size-group-label { font-size: 12px; color: var(--gray-600); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ============================================ stress_d LOGO */
+.logo { display: inline-flex; align-items: center; }
+.logo:hover { opacity: 1; }
+.footer-brand { margin-bottom: 14px; }
+/* Header wordmark (lowercase fracture) */
+.logo .logo-wordmark { display: block; height: 30px; width: auto; }
+@media (max-width: 768px) { .logo .logo-wordmark { height: 27px; } }
+@media (max-width: 380px) { .logo .logo-wordmark { height: 23px; } }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 768px) { .hero-actions { justify-content: center; } }
+@media (max-width: 380px) { .hero-actions .btn { flex: 1 1 100%; } }
+.hero-kicker { font-size: 12px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gray-600); margin-bottom: 14px; }
+.hero-perks { list-style: none; padding: 0; margin: 28px 0 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; font-weight: 600; color: var(--gray-800); }
+.hero-perks li { display: inline-flex; align-items: center; gap: 8px; }
+.hero-perks li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--black); }
+@media (max-width: 768px) { .hero-perks { justify-content: center; } }

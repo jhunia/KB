@@ -82,7 +82,7 @@ export default function OrdersPage() {
   const bulkUpdate = async (status: string, label: string) => {
     const ok = await confirm({
       title: `${label} ${selectedOrders.length} order(s)?`,
-      message: ['Shipped', 'Delivered', 'Processing'].includes(status) ? 'Customers will get an email update.' : undefined,
+      message: ['Shipped', 'Delivered', 'Processing'].includes(status) ? 'Customers see the new status in their account (and get an email once order emails are set up).' : undefined,
       confirmLabel: label,
       danger: status === 'Cancelled',
     });
@@ -101,7 +101,7 @@ export default function OrdersPage() {
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `kbent-orders-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `stressd-orders-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {

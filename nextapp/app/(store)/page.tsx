@@ -127,17 +127,21 @@ export default function HomePage() {
       <section className="hero">
         <div className="hero-inner">
           <div className="hero-content">
-            <h1 className="hero-title">WE HAVE CLOTHES THAT MATCH YOUR STYLE</h1>
+            <p className="hero-kicker">new season · est. 2026</p>
+            <h1 className="hero-title">Stressed?<br />Get dressed.</h1>
             <p className="hero-desc">
-              Browse through our diverse range of meticulously crafted garments, designed to bring out
-              your individuality and cater to your sense of style.
+              Streetwear and clean everyday fits for when life&apos;s doing the most.
+              Cop yours, pay with MoMo or card, and we&apos;ll pull up anywhere in Ghana.
             </p>
-            <Link href="/category" className="btn btn-primary">Shop Now</Link>
-            <div className="hero-stats">
-              <div className="hero-stat"><div className="number">200+</div><div className="label">International Brands</div></div>
-              <div className="hero-stat"><div className="number">2,000+</div><div className="label">High-Quality Products</div></div>
-              <div className="hero-stat"><div className="number">30,000+</div><div className="label">Happy Customers</div></div>
+            <div className="hero-actions">
+              <Link href="/category" className="btn btn-primary">Shop now</Link>
+              <Link href="/category?filter=new" className="btn btn-outline">New drops</Link>
             </div>
+            {/* True, checkable perks (not made-up totals) */}
+            <ul className="hero-perks">
+              <li>MoMo &amp; card</li>
+              <li>Delivery across Ghana</li>
+            </ul>
           </div>
           <div className="hero-image">
             {promo === undefined ? null : promo && isPromoLive(promo) && promo.image ? (
@@ -146,7 +150,7 @@ export default function HomePage() {
                 <Image src={promo.image} alt={promo.title.trim() || 'Sale — shop now'} width={1200} height={1500} sizes="(max-width: 768px) 100vw, 50vw" preload />
               </Link>
             ) : (
-              <Image src="/assets/images/landing_page.jpg" alt="KB.ENT Fashion" width={736} height={920} sizes="(max-width: 768px) 100vw, 50vw" preload />
+              <Image src="/assets/images/landing_page.jpg" alt="stress_d fashion" width={736} height={920} sizes="(max-width: 768px) 100vw, 50vw" preload />
             )}
           </div>
         </div>

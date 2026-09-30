@@ -1,5 +1,5 @@
 /* ============================================
-   KB.ENT Admin — layout & components
+   stress_d admin — layout & components
    Everything is prefixed adm- so it can't clash with store styles.
    ============================================ */
 
@@ -12,7 +12,8 @@
 .adm-sidebar { width: var(--adm-side); flex-shrink: 0; background: #fff; border-right: 1px solid var(--adm-border);
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; padding: 20px 12px; }
 .adm-logo { font-family: var(--font-display); font-weight: 900; font-size: 22px; padding: 4px 12px 20px; letter-spacing: -0.5px; }
-.adm-logo span { font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--adm-muted); margin-left: 4px; letter-spacing: 0; }
+.adm-logo { display: flex; align-items: center; gap: 6px; }
+.adm-logo .adm-logo-tag { font-family: var(--font-body); font-weight: 600; font-size: 12px; color: var(--adm-muted); margin-left: 4px; letter-spacing: 0; }
 .adm-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 .adm-nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #374151; font-weight: 500; }
 .adm-nav-link:hover { background: #F3F4F6; opacity: 1; }

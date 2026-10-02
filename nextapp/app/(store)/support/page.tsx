@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { SITE, waNumber } from '@/lib/site';
+import { SITE, storeWhatsAppLink } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Customer support',
@@ -17,7 +17,7 @@ export default function SupportPage() {
 
         <div className="help-contact">
           {SITE.whatsapp && (
-            <a className="help-contact-card" href={`https://wa.me/${waNumber(SITE.whatsapp)}`} target="_blank" rel="noopener noreferrer">
+            <a className="help-contact-card" href={storeWhatsAppLink()} target="_blank" rel="noopener noreferrer">
               <strong>Chat on WhatsApp</strong><span>{SITE.whatsapp}</span>
             </a>
           )}

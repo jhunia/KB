@@ -130,18 +130,13 @@ export default function HomePage() {
             <p className="hero-kicker">new season · est. 2026</p>
             <h1 className="hero-title">Stressed?<br />Get dressed.</h1>
             <p className="hero-desc">
-              Streetwear and clean everyday fits for when life&apos;s doing the most.
-              Cop yours, pay with MoMo or card, and we&apos;ll pull up anywhere in Ghana.
+              Fits that take the pressure off. Streetwear and everyday staples,
+              delivered to your door — wherever in the world that is.
             </p>
             <div className="hero-actions">
               <Link href="/category" className="btn btn-primary">Shop now</Link>
               <Link href="/category?filter=new" className="btn btn-outline">New drops</Link>
             </div>
-            {/* True, checkable perks (not made-up totals) */}
-            <ul className="hero-perks">
-              <li>MoMo &amp; card</li>
-              <li>Delivery across Ghana</li>
-            </ul>
           </div>
           <div className="hero-image">
             {promo === undefined ? null : promo && isPromoLive(promo) && promo.image ? (

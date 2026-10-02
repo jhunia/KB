@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { SITE, storeWhatsAppLink } from '@/lib/site';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
@@ -422,7 +423,8 @@ export default function CartPage() {
             </div>
             <div className="form-group">
               <label htmlFor="co-phone">Phone</label>
-              <input id="co-phone" type="tel" inputMode="tel" autoComplete="tel" value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} placeholder="024XXXXXXX" required />
+              <input id="co-phone" type="tel" inputMode="tel" autoComplete="tel" value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} placeholder="e.g. 024 123 4567 or +44 7700 900123" aria-describedby="co-phone-hint" required />
+              <small id="co-phone-hint" style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--gray-600)' }}>Outside Ghana? Start with your country code (+44, +1…) so we can reach you on WhatsApp.</small>
               <small className="field-hint">We&apos;ll call this number to arrange delivery.</small>
             </div>
             <div className="form-group">
@@ -498,6 +500,16 @@ export default function CartPage() {
             {guestOrderId && (
               <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 24 }}>
                 Order reference: <strong style={{ color: 'var(--black)', wordBreak: 'break-all' }}>{guestOrderId}</strong>
+              </p>
+            )}
+            {SITE.whatsapp && (
+              <p style={{ fontSize: 14, color: 'var(--gray-600)', marginBottom: 24 }}>
+                Questions about your order?{' '}
+                <a
+                  href={storeWhatsAppLink(guestOrderId ? `Hi stress_d, I have a question about my order ${guestOrderId}.` : 'Hi stress_d, I have a question about my order.')}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'var(--black)', fontWeight: 600, textDecoration: 'underline' }}
+                >Chat with us on WhatsApp</a>
               </p>
             )}
 

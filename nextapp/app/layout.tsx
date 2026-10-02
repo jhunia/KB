@@ -25,7 +25,9 @@ export const metadata: Metadata = {
 // Each area adds its own header/navigation in its own layout.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // data-scroll-behavior: lets Next switch off the smooth scrolling (globals.css) during page changes,
+    // so a new page opens at the top instead of animating from the old scroll position
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
         <AuthProvider>
           <WishlistProvider>

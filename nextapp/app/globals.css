@@ -169,7 +169,9 @@ section { padding: 64px 0; }
   background-color: var(--gray-100); margin-bottom: 12px;
   position: relative; display: block;
 }
-.product-card-img img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform var(--transition-slow); }
+/* contain by default so square / landscape photos show in full — sleeves and hands aren't cut off.
+   multiply blends white photo backgrounds into the grey frame so there's no visible box. */
+.product-card-img img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; transition: transform var(--transition-slow); }
 .product-card:hover .product-card-img img { transform: scale(1.05); }
 .wishlist-btn {
   position: absolute; top: 12px; right: 12px;
@@ -361,10 +363,12 @@ section { padding: 64px 0; }
 .gallery-thumbs { display: flex; flex-direction: column; gap: 12px; width: 100px; }
 .gallery-thumb { width: 100px; height: 120px; border-radius: var(--radius-md); overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color var(--transition-fast); background: var(--gray-100); }
 .gallery-thumb.active { border-color: var(--black); }
-.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
 .gallery-main { flex: 1; border-radius: var(--radius-lg); overflow: hidden; background: var(--gray-100); aspect-ratio: 3/4; position: relative; }
-.gallery-main img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.gallery-main img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; transition: transform 0.4s ease; }
 .gallery-main:hover img { transform: scale(1.05); }
+/* Photos already shaped like the frame fill it edge to edge (see lib/imageFit.ts) */
+.product-card-img img[data-fit="cover"], .gallery-main img[data-fit="cover"], .gallery-thumb img[data-fit="cover"] { object-fit: cover; mix-blend-mode: normal; }
 .product-info { padding-top: 8px; }
 .product-title { font-family: var(--font-display); font-size: clamp(28px,4vw,42px); font-weight: 700; line-height: 1.1; margin-bottom: 12px; text-transform: uppercase; }
 .product-rating { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
@@ -518,6 +522,7 @@ section { padding: 64px 0; }
   .product-gallery { flex-direction: column-reverse; max-width: 400px; margin: 0 auto; }
   .gallery-thumbs { flex-direction: row; width: 100%; overflow-x: auto; }
   .gallery-thumb { width: 80px; height: 80px; flex-shrink: 0; }
+  .gallery-main { flex: none; width: 100%; }
   .reviews-grid { grid-template-columns: 1fr; }
   .product-actions { flex-direction: column; }
   .product-cta-buttons { width: 100%; }
@@ -853,3 +858,7 @@ section { padding: 64px 0; }
 .hero-perks li { display: inline-flex; align-items: center; gap: 8px; }
 .hero-perks li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--black); }
 @media (max-width: 768px) { .hero-perks { justify-content: center; } }
+
+/* Product page: link to the store's WhatsApp */
+.ask-whatsapp { display: inline-block; margin-top: 16px; font-size: 14px; color: var(--gray-600); text-decoration: underline; text-underline-offset: 3px; }
+.ask-whatsapp:hover { color: var(--black); }

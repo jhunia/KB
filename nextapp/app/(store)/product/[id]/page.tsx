@@ -7,6 +7,8 @@ import { useCart } from '@/context/CartContext';
 import ProductCard from '@/components/ui/ProductCard';
 import type { Product, Review } from '@/lib/types';
 import Image from 'next/image';
+import { fitToFrame } from '@/lib/imageFit';
+import { SITE, storeWhatsAppLink } from '@/lib/site';
 import { colorName, swatchColor } from '@/lib/colors';
 import SizeGuide from '@/components/ui/SizeGuide';
 
@@ -59,6 +61,12 @@ export default function ProductPage({ params }: Props) {
   useEffect(() => {
     params.then(p => setProductId(Number(p.id)));
   }, [params]);
+
+  // Always open a product at the top. Phone browsers can stop the navigation scroll partway
+  // (the page grows from the loading skeleton mid-scroll), leaving shoppers near the reviews.
+  useEffect(() => {
+    if (productId) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [productId]);
 
   useEffect(() => {
     if (!productId) return;
@@ -175,7 +183,7 @@ export default function ProductPage({ params }: Props) {
                   aria-label={`Show image ${i + 1} of ${product.images.length}`}
                   aria-pressed={i === selectedImg}
                 >
-                  <Image src={img} alt="" width={200} height={240} />
+                  <Image src={img} alt="" width={200} height={240} onLoad={fitToFrame} />
                 </button>
               ))}
             </div>
@@ -192,6 +200,7 @@ export default function ProductPage({ params }: Props) {
                 height={1200}
                 sizes="(max-width: 768px) 100vw, 45vw"
                 preload
+                onLoad={fitToFrame}
                 style={product.inStock === false ? { opacity: 0.5, filter: 'grayscale(100%)' } : undefined}
               />
             </div>
@@ -294,6 +303,15 @@ export default function ProductPage({ params }: Props) {
                 <span>✓ {inCart} in your cart</span>
                 <button type="button" onClick={openDrawer}>View cart</button>
               </p>
+            )}
+            {SITE.whatsapp && (
+              <a
+                className="ask-whatsapp"
+                href={storeWhatsAppLink(`Hi stress_d, I have a question about the ${product.name}.`)}
+                target="_blank" rel="noopener noreferrer"
+              >
+                {product.inStock === false ? 'Sold out — ask when it’s back on WhatsApp' : 'Questions about sizing or stock? Ask on WhatsApp'}
+              </a>
             )}
           </div>
         </div>

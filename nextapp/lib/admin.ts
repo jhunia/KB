@@ -85,6 +85,9 @@ const cleanSearch = (q: string) => q.replace(/[,()*%\\"]/g, ' ').trim();
 /** Ghana numbers like 024 123 4567 → 233241234567 for WhatsApp links */
 export function whatsappNumber(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
+  // +44… / 0044… = already international; a bare leading 0 is treated as a Ghana number
+  if ((phone || '').trim().startsWith('+')) return digits;
+  if (digits.startsWith('00')) return digits.slice(2);
   if (digits.startsWith('233')) return digits;
   if (digits.startsWith('0')) return '233' + digits.slice(1);
   return digits;

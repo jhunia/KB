@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
 import Image from 'next/image';
+import { fitToFrame } from '@/lib/imageFit';
 
 interface Product {
   id: number;
@@ -55,6 +56,7 @@ export default function ProductCard({ product, carousel = false }: ProductCardPr
           width={600}
           height={750}
           sizes="(max-width: 768px) 50vw, 25vw"
+          onLoad={fitToFrame}
           style={product.inStock === false ? { opacity: 0.5, filter: 'grayscale(100%)' } : undefined}
         />
 

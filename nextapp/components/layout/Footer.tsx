@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SITE } from '@/lib/site';
+import { SITE, storeWhatsAppLink } from '@/lib/site';
 import Logo from '@/components/ui/Logo';
 
 const SOCIAL_ICONS: Record<keyof typeof SITE.social, { label: string; path: string }> = {
@@ -43,6 +43,9 @@ export default function Footer() {
             <h4 className="footer-col-title">Help</h4>
             <ul className="footer-links">
               <li><Link href="/support">Customer support</Link></li>
+              {SITE.whatsapp && (
+                <li><a href={storeWhatsAppLink()} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></li>
+              )}
               <li><Link href="/delivery">Delivery details</Link></li>
               <li><Link href="/faq#orders">FAQ — Orders</Link></li>
               <li><Link href="/faq#payments">FAQ — Payments</Link></li>

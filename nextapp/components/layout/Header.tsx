@@ -29,6 +29,8 @@ export default function Header() {
   const showBanner = useSyncExternalStore(subscribeBanner, isBannerOpen, () => true);
   const [searchVal, setSearchVal] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false); // guests: Log in / Create account / Track an order
+  const accountRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const navRef = useRef<HTMLElement>(null);
 
@@ -47,9 +49,19 @@ export default function Header() {
     if (user) {
       router.push(user.role === 'admin' ? '/admin' : '/profile');
     } else {
-      router.push('/auth');
+      setAccountOpen(v => !v);
     }
   };
+
+  // Close the guest account menu on outside click / Escape
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onDown = (e: MouseEvent) => { if (!accountRef.current?.contains(e.target as Node)) setAccountOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [accountOpen]);
 
   // Close mobile nav on outside click
   useEffect(() => {
@@ -89,6 +101,7 @@ export default function Header() {
             <Link href="/category?filter=sale" onClick={() => setMobileOpen(false)}>On Sale</Link>
             <Link href="/category?filter=new" onClick={() => setMobileOpen(false)}>New Arrivals</Link>
             <Link href="/category?filter=brands" onClick={() => setMobileOpen(false)}>Brands</Link>
+            <Link href="/track" className="nav-mobile-only" onClick={() => setMobileOpen(false)}>Track order</Link>
           </nav>
 
           <div className="header-search" role="search">
@@ -127,12 +140,27 @@ export default function Header() {
               </svg>
               <span className={`cart-badge${cartCount === 0 ? ' hidden' : ''}`} id="cartBadge">{cartCount}</span>
             </button>
-            <button onClick={handleAccountClick} aria-label="Account">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </button>
+            <div className="account-menu-wrap" ref={accountRef}>
+              <button
+                onClick={handleAccountClick}
+                aria-label={user ? 'My account' : 'Account'}
+                aria-haspopup={user ? undefined : 'menu'}
+                aria-expanded={user ? undefined : accountOpen}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+              {!user && accountOpen && (
+                <div className="account-menu" role="menu">
+                  <Link href="/auth" role="menuitem" onClick={() => setAccountOpen(false)}>Log in</Link>
+                  <Link href="/auth?signup=true" role="menuitem" onClick={() => setAccountOpen(false)}>Create account</Link>
+                  <hr />
+                  <Link href="/track" role="menuitem" onClick={() => setAccountOpen(false)}>Track an order</Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

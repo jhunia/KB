@@ -14,8 +14,8 @@ const SECTIONS: { id: string; title: string; items: QA[] }[] = [
     id: 'orders',
     title: 'Orders',
     items: [
-      { q: 'Do I need an account to order?', a: <>No — you can check out as a guest. With an account you can track your orders and keep a wishlist.</> },
-      { q: 'How do I track my order?', a: <>Open <Link href="/profile" className="legal-link">My Account</Link> to see where each order is. Guests can <Link href="/support" className="legal-link">contact us</Link> with their order number.</> },
+      { q: 'Do I need an account to order?', a: <>No — you can check out as a guest and follow your order on the Track order page. With an account, all your orders and your wishlist are in one place.</> },
+      { q: 'How do I track my order?', a: <>Open <Link href="/profile" className="legal-link">My Account</Link> to see where each order is. Ordered as a guest? Use <Link href="/track" className="legal-link">Track your order</Link> with your order number and email or phone number.</> },
       { id: 'cancel', q: 'Can I cancel my order?', a: <>Yes, until it has shipped. In <Link href="/profile" className="legal-link">My Account</Link>, choose “Cancel order” on the order. Guests can contact us. If you&apos;ve already paid, your refund follows once the cancellation is approved.</> },
       { q: 'How do I choose the right size?', a: <>Every clothing and shoe page has a <strong>Size guide</strong> link next to the sizes. If you&apos;re between sizes, pick the larger one for a relaxed fit.</> },
       { q: 'Can I return or exchange an item?', a: <>We don&apos;t accept returns or exchanges for change of mind, so please check the size guide before you order. If your item arrives damaged or wrong, contact us within 48 hours — see our <Link href="/refund" className="legal-link">refund policy</Link>.</> },

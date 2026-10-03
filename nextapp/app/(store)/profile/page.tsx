@@ -5,26 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useAuth } from '@/context/AuthContext';
 import type { Order } from '@/lib/types';
-import Image from 'next/image';
-import { colorName } from '@/lib/colors';
-
-// What customers see (the admin uses its own, more operational wording)
-const CUSTOMER_STATUS: Record<string, { label: string; tone: string }> = {
-  pending_payment: { label: 'Awaiting payment', tone: 'pending' },
-  paid: { label: 'Order received', tone: 'processing' },
-  Processing: { label: 'Being prepared', tone: 'processing' },
-  Shipped: { label: 'On its way', tone: 'shipped' },
-  Delivered: { label: 'Delivered', tone: 'delivered' },
-  'Cancellation Requested': { label: 'Cancellation requested', tone: 'pending' },
-  Cancelled: { label: 'Cancelled', tone: 'cancelled' },
-  payment_failed: { label: 'Payment failed', tone: 'cancelled' },
-};
-const STEPS = ['Order received', 'Being prepared', 'On its way', 'Delivered'];
-const STEP_INDEX: Record<string, number> = { paid: 0, Processing: 1, Shipped: 2, Delivered: 3 };
-// Customers can ask to cancel until the order has been shipped
-const CANCELLABLE = ['pending_payment', 'paid', 'Processing'];
-
-const money = (n: number) => `GH₵${n.toFixed(2)}`;
+import OrderCard from '@/components/orders/OrderCard';
+import { CANCELLABLE } from '@/lib/orderStatus';
 
 export default function ProfilePage() {
   return (
@@ -116,78 +98,29 @@ function ProfileInner() {
           </div>
         ) : (
           <div className="orders-list">
-            {orders.map(order => {
-              const status = CUSTOMER_STATUS[order.status] || { label: order.status, tone: '' };
-              const step = STEP_INDEX[order.status];
-              return (
-                <div key={order.id} id={`order-${order.id}`} className={`order-card${order.id === justPaid ? ' order-card-highlight' : ''}`}>
-                  <div className="order-header">
+            {orders.map(order => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                highlight={order.id === justPaid}
+                actions={CANCELLABLE.includes(order.status) && confirmCancel !== order.id && (
+                  <button type="button" className="order-cancel-btn" onClick={() => { setConfirmCancel(order.id); setNotice(null); }}>
+                    Cancel order
+                  </button>
+                )}
+              >
+                {confirmCancel === order.id && (
+                  <div className="order-confirm" role="alertdialog" aria-label="Confirm cancellation">
+                    <span>Ask us to cancel this order?</span>
                     <div>
-                      <div className="order-id">{order.id}</div>
-                      <div className="order-date">
-                        {new Date(order.date).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                      <span className={`order-status ${status.tone}`}>{status.label}</span>
-                      {CANCELLABLE.includes(order.status) && confirmCancel !== order.id && (
-                        <button type="button" className="order-cancel-btn" onClick={() => { setConfirmCancel(order.id); setNotice(null); }}>
-                          Cancel order
-                        </button>
-                      )}
+                      <button type="button" className="order-cancel-btn" onClick={() => handleCancelOrder(order.id)}>Yes, request cancellation</button>
+                      <button type="button" className="order-keep-btn" onClick={() => setConfirmCancel(null)}>Keep order</button>
                     </div>
                   </div>
-
-                  {confirmCancel === order.id && (
-                    <div className="order-confirm" role="alertdialog" aria-label="Confirm cancellation">
-                      <span>Ask us to cancel this order?</span>
-                      <div>
-                        <button type="button" className="order-cancel-btn" onClick={() => handleCancelOrder(order.id)}>Yes, request cancellation</button>
-                        <button type="button" className="order-keep-btn" onClick={() => setConfirmCancel(null)}>Keep order</button>
-                      </div>
-                    </div>
-                  )}
-                  {notice?.id === order.id && <p className={`order-notice ${notice.tone}`} role="status">{notice.msg}</p>}
-
-                  {step !== undefined && (
-                    <ol className="order-progress" aria-label={`Order progress: ${status.label}`}>
-                      {STEPS.map((s, i) => (
-                        <li key={s} className={i <= step ? 'done' : ''} aria-current={i === step ? 'step' : undefined}>{s}</li>
-                      ))}
-                    </ol>
-                  )}
-
-                  <div className="order-items">
-                    {order.items.map((item, i) => {
-                      const product = db.getProductById(item.productId);
-                      const unit = item.unitPrice ?? product?.price;
-                      return (
-                        <div key={i} className="order-item">
-                          {product?.images?.[0] && (
-                            <Image src={product.images[0]} alt="" width={120} height={120} className="order-item-img" />
-                          )}
-                          <div className="order-item-info">
-                            {product ? <Link href={`/product/${product.id}`} className="order-item-name">{product.name}</Link> : <div className="order-item-name">Item no longer available</div>}
-                            <div className="order-item-meta">
-                              {[item.color && colorName(item.color), item.size && `Size ${item.size}`, `Qty ${item.quantity}`].filter(Boolean).join(' · ')}
-                            </div>
-                          </div>
-                          <div style={{ fontWeight: 700, fontSize: 16 }}>{unit !== undefined ? money(unit * item.quantity) : '—'}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="order-footer">
-                    {!!order.discount && <span className="order-footer-note">Discount −{money(order.discount)}</span>}
-                    <span>Paid online: {money(order.total)}</span>
-                    <span className="order-footer-note">
-                      {order.deliveryFee ? `Delivery ${money(order.deliveryFee)} (paid separately)` : 'Delivery fee confirmed by phone'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                )}
+                {notice?.id === order.id && <p className={`order-notice ${notice.tone}`} role="status">{notice.msg}</p>}
+              </OrderCard>
+            ))}
           </div>
         )}
       </div>

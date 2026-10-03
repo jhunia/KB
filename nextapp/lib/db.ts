@@ -77,6 +77,7 @@ class KBDatabase {
       tag: p.tag as string | null,
       description: p.description as string | null,
       inStock: p.in_stock as boolean,
+      archived: Boolean(p.archived_at),
     }));
   }
 
@@ -118,8 +119,14 @@ class KBDatabase {
   }
 
   // ---- PRODUCTS ----
-  getProducts(): Product[] { return this._productsCache || []; }
-  getProductById(id: number): Product | undefined { return this.getProducts().find(p => p.id === id); }
+  /** Products for sale (archived ones hidden) — everything the shop lists or searches uses this */
+  getProducts(): Product[] { return (this._productsCache || []).filter(p => !p.archived); }
+  /** Every product, archived included — admin lists */
+  getAllProducts(): Product[] { return this._productsCache || []; }
+  /** Any product, archived included — so past orders can still show what was bought */
+  getProductById(id: number): Product | undefined { return this.getAllProducts().find(p => p.id === id); }
+  /** A product that can still be bought (product page, cart, wishlist) */
+  getShopProduct(id: number): Product | undefined { return this.getProducts().find(p => p.id === id); }
 
   getProductsByTag(tag: string): Product[] {
     const filtered = this.getProducts().filter(p => p.tag === tag);
@@ -332,6 +339,7 @@ class KBDatabase {
     customer: { name: string; email: string; phone: string; address: string };
     subtotal: number; discount: number; deliveryFee: number; total: number;
     paymentMethod?: string;
+    promoCode?: string | null;
     items: Array<{ productId: number; size: string; color: string; quantity: number }>;
   }, status = 'pending_payment'): Promise<Order | null> {
     const supabase = getClient();
@@ -348,6 +356,7 @@ class KBDatabase {
       delivery_fee: orderData.deliveryFee, total: orderData.total,
       payment_method: orderData.paymentMethod || 'paystack',
       customer_info: customerInfo,
+      ...(orderData.promoCode ? { promo_code: orderData.promoCode } : {}),
     });
     if (error) { console.error('[DB] Order insert error:', error); return null; }
     const items = orderData.items.map(item => ({
@@ -423,32 +432,17 @@ class KBDatabase {
     return data === true;
   }
 
+  /** Checks a promo code for the signed-in customer (members only — app/supabase_promo_fix.sql) */
   async validatePromoCode(code: string): Promise<{ valid: boolean; discount: number; reason?: string }> {
-    const supabase = getClient();
-    const user = this._currentUser;
-    const email = user?.email || '';
-    if (!email) return { valid: false, discount: 0, reason: 'You must be logged in to use promo codes.' };
-
-    const { data, error } = await supabase.rpc('validate_promo_code', {
-      p_code: code.toUpperCase().trim(),
-      p_email: email,
-      p_user_id: user?.id || null,
-    });
-    if (error || !data || data.length === 0) return { valid: false, discount: 0, reason: 'Invalid or expired promo code.' };
-    const row = data[0] as { is_valid: boolean; discount_percent: number; reason: string };
+    if (!this._currentUser) return { valid: false, discount: 0, reason: 'Log in to use a promo code.' };
+    const { data, error } = await getClient().rpc('validate_promo_code', { p_code: code.toUpperCase().trim() });
+    if (error) {
+      console.error('[DB] Promo check error:', error);
+      return { valid: false, discount: 0, reason: 'Couldn’t check the code right now. Please try again.' };
+    }
+    const row = (data as { is_valid: boolean; discount_percent: number; reason: string }[] | null)?.[0];
+    if (!row) return { valid: false, discount: 0, reason: 'That code isn’t valid.' };
     return { valid: row.is_valid, discount: row.discount_percent || 0, reason: row.reason };
-  }
-
-  async recordPromoUse(code: string, customerEmail: string): Promise<void> {
-    if (!code) return;
-    const supabase = getClient();
-    const user = this._currentUser;
-    const { error } = await supabase.from('promo_uses').insert({
-      promo_code: code.toUpperCase().trim(),
-      normalized_email: customerEmail.toLowerCase().replace(/\+.*@/, '@'),
-      user_id: user?.id || null,
-    });
-    if (error) console.warn('[DB] Could not record promo use (may already be recorded):', error.message);
   }
 
   async getOrders(limit = 200): Promise<Order[]> {
@@ -474,6 +468,9 @@ class KBDatabase {
   async getUserOrders(): Promise<Order[]> {
     if (!this._currentUser) return [];
     const supabase = getClient();
+    // Attach orders placed as a guest with this (confirmed) email — app/supabase_guest_orders.sql.
+    // Harmless if the function isn't installed yet.
+    await supabase.rpc('claim_guest_orders').then(() => {}, () => {});
     const { data } = await supabase.from('orders').select('*, order_items(*)')
       .eq('user_id', this._currentUser.id).order('created_at', { ascending: false });
     return (data || []).map((o: Record<string, unknown>) => ({
@@ -581,22 +578,46 @@ class KBDatabase {
   }
 
   /**
-   * Deletes a product only if no order contains it. The database cascades product
-   * deletes into order_items, so deleting an ordered product would erase it from
-   * customers' order history — those products should be marked out of stock instead.
+   * Admin "Delete". A product nobody has ordered is deleted for good (images too).
+   * A product that appears in orders can't be deleted without breaking those orders,
+   * so it's archived instead: hidden from the shop, still shown in order history,
+   * and restorable. Needs app/supabase_product_archive.sql.
    */
-  async deleteProduct(productId: number): Promise<{ success: boolean; message?: string }> {
+  async deleteProduct(productId: number): Promise<{ success: boolean; archived?: boolean; message?: string }> {
     const supabase = getClient();
     const { count, error: countError } = await supabase
       .from('order_items').select('id', { count: 'exact', head: true }).eq('product_id', productId);
     if (countError) return { success: false, message: countError.message };
+
     if (count && count > 0) {
-      return { success: false, message: `This product appears in ${count} order line(s). Deleting it would remove it from those orders, so mark it Out of Stock instead.` };
+      const { error } = await supabase.from('products').update({ archived_at: new Date().toISOString() }).eq('id', productId);
+      if (error) {
+        console.error('[DB] Archive product error:', error);
+        return { success: false, message: /archived_at/.test(error.message) ? 'Run app/supabase_product_archive.sql in Supabase first.' : error.message };
+      }
+      const p = this.getProductById(productId);
+      if (p) p.archived = true;
+      return { success: true, archived: true };
     }
+
+    const images = this.getProductById(productId)?.images || [];
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) { console.error('[DB] Delete product error:', error); return { success: false, message: error.message }; }
+    // Remove its uploaded photos from storage (images bundled with the site are left alone)
+    const marker = `/storage/v1/object/public/${PRODUCT_IMAGE_BUCKET}/`;
+    const paths = images.filter(u => u.includes(marker)).map(u => decodeURIComponent(u.split(marker)[1].split('?')[0]));
+    if (paths.length) await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(paths).then(() => {}, () => {});
     this._productsCache = this._productsCache?.filter(p => p.id !== productId) || [];
     return { success: true };
+  }
+
+  /** Puts an archived product back in the shop */
+  async restoreProduct(productId: number): Promise<boolean> {
+    const { error } = await getClient().from('products').update({ archived_at: null }).eq('id', productId);
+    if (error) { console.error('[DB] Restore product error:', error); return false; }
+    const p = this.getProductById(productId);
+    if (p) p.archived = false;
+    return true;
   }
 
   async getCustomers() {

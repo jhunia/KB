@@ -21,6 +21,8 @@ export interface Product {
   tag: string | null;
   description: string | null;
   inStock: boolean;
+  /** Removed from the shop but kept for past orders (see deleteProduct) */
+  archived?: boolean;
 }
 
 export interface CartItem {

@@ -2,9 +2,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SITE, storeWhatsAppLink } from '@/lib/site';
+import { rememberGuestOrder } from '@/lib/guestOrders';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { loadPaystackScript, initPaystackPayment } from '@/lib/paystack';
 import type { Product } from '@/lib/types';
@@ -132,10 +134,12 @@ function LikedTile({
 /* ═══════════════════════════════════════════════════════════════ */
 export default function CartPage() {
   const { items, initialized, removeFromCart, updateQuantity, clearCart, cartTotal, getProductById, addToCart } = useCart();
+  const { user } = useAuth(); // promo codes are for signed-in customers only
   const { wishlistProducts } = useWishlist();
 
   const [promoCode, setPromoCode] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
+  const [appliedCode, setAppliedCode] = useState<string | null>(null); // the code the discount belongs to
   const [promoMsg, setPromoMsg] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -166,28 +170,50 @@ export default function CartPage() {
   }, [showModal]);
 
   const handlePromo = async () => {
-    if (!promoCode.trim()) return;
-    const res = await db.validatePromoCode(promoCode);
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    const res = await db.validatePromoCode(code);
     if (res.valid) {
       setPromoDiscount(res.discount);
+      setAppliedCode(code);
       setPromoMsg(`✅ ${res.discount}% discount applied!`);
     } else {
       setPromoDiscount(0);
-      setPromoMsg(`❌ ${res.reason || 'Invalid or expired promo code.'}`);
+      setAppliedCode(null);
+      setPromoMsg(`❌ ${res.reason || 'That code isn’t valid or has expired.'}`);
     }
+  };
+
+  const removePromo = () => {
+    setPromoDiscount(0);
+    setAppliedCode(null);
+    setPromoCode('');
+    setPromoMsg('');
   };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
     // Guest checkout allowed — no login required
-    const user = db.getCurrentUser();
+    const currentUser = db.getCurrentUser();
 
     setModalLoading(true);
+    // Check the code again right before paying (it may have expired while shopping)
+    if (appliedCode) {
+      const res = await db.validatePromoCode(appliedCode);
+      if (!res.valid) {
+        setModalLoading(false);
+        removePromo();
+        setShowModal(false);
+        setPromoMsg(`❌ ${res.reason || 'That code can’t be used.'} The discount has been removed — check your total and try again.`);
+        return;
+      }
+    }
     const order = await db.addOrder({
       customer: customerForm,
       subtotal, discount: discountAmount, deliveryFee: DELIVERY_FEE, total,
       paymentMethod: 'paystack',
+      promoCode: appliedCode,
       items: items.map(i => ({ productId: i.productId, size: i.size, color: i.color, quantity: i.quantity })),
     });
     if (!order) { setModalLoading(false); alert('Failed to create order. Please try again.'); return; }
@@ -196,17 +222,15 @@ export default function CartPage() {
     initPaystackPayment(
       { id: order.id, total, customer: customerForm },
       async ({ reference }) => {
-        await db.confirmPayment(reference);
-        if (promoCode.trim() && promoDiscount > 0) {
-          await db.recordPromoUse(promoCode, customerForm.email);
-        }
+        await db.confirmPayment(reference); // also records the promo code use (server side)
         clearCart();
         setShowModal(false);
-        if (user) {
+        if (currentUser) {
           // Logged-in: go straight to order page
           router.push(`/profile?order=${order.id}`);
         } else {
-          // Guest: show signup nudge with bonus offer
+          // Guest: remember the order on this device for /track, then show the confirmation
+          rememberGuestOrder({ id: order.id, contact: customerForm.email.trim().toLowerCase() });
           setGuestOrderId(order.id);
           setShowSignupNudge(true);
         }
@@ -354,14 +378,24 @@ export default function CartPage() {
               <span style={{ color: 'var(--gray-500)', fontStyle: 'italic' }}>Quoted on call</span>
             </div>
             <div className="summary-row total"><span className="label">Total</span><span>{formatPrice(total)}</span></div>
+            {!user ? (
+              <p className="promo-login">
+                Have a promo code? <Link href="/auth?redirect=/cart">Log in</Link> or <Link href="/auth?signup=true&redirect=/cart">create an account</Link> to use it.
+              </p>
+            ) : (
             <div className="promo-code-container">
               <input
                 type="text" placeholder="Enter promo code"
                 value={promoCode} onChange={e => setPromoCode(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handlePromo()}
+                disabled={!!appliedCode}
+                autoCapitalize="characters" aria-label="Promo code"
               />
-              <button onClick={handlePromo}>Apply</button>
+              {appliedCode
+                ? <button type="button" onClick={removePromo}>Remove</button>
+                : <button type="button" onClick={handlePromo}>Apply</button>}
             </div>
+            )}
             {promoMsg && <p style={{ fontSize: 13, marginTop: -16, marginBottom: 16 }}>{promoMsg}</p>}
             <button className="checkout-btn" onClick={() => setShowModal(true)}>
               Go to Checkout →
@@ -499,8 +533,13 @@ export default function CartPage() {
             </p>
             {guestOrderId && (
               <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 24 }}>
-                Order reference: <strong style={{ color: 'var(--black)', wordBreak: 'break-all' }}>{guestOrderId}</strong>
+                Order number: <strong style={{ color: 'var(--black)', wordBreak: 'break-all' }}>{guestOrderId}</strong>
               </p>
+            )}
+            {guestOrderId && (
+              <Link href={`/track?order=${encodeURIComponent(guestOrderId)}`} className="btn btn-primary" style={{ display: 'block', marginBottom: 16 }}>
+                Track your order
+              </Link>
             )}
             {SITE.whatsapp && (
               <p style={{ fontSize: 14, color: 'var(--gray-600)', marginBottom: 24 }}>

@@ -163,15 +163,27 @@ export default function ProductForm({ product, duplicateOf, onSaved }: { product
     }
   };
 
+  // Never ordered → deleted for good; ordered → removed from the shop, kept in past orders (db.deleteProduct)
   const remove = async () => {
     if (!product) return;
-    const ok = await confirm({ title: `Delete “${product.name}”?`, message: 'This can’t be undone. Products that have been ordered can’t be deleted — mark them out of stock instead.', confirmLabel: 'Delete', danger: true });
+    const ok = await confirm({
+      title: `Delete “${product.name}”?`,
+      message: 'If nobody has ordered it, it’s deleted for good. If it has been ordered, it’s removed from the shop but stays in past orders — you can restore it later.',
+      confirmLabel: 'Delete', danger: true,
+    });
     if (!ok) return;
     const res = await db.deleteProduct(product.id);
     if (!res.success) { toast(res.message || 'Could not delete.', 'error'); return; }
     savedRef.current = true;
-    toast('Product deleted.');
+    toast(res.archived ? 'Removed from the shop — kept in past orders. Find it under Products → Archived.' : 'Product deleted.');
     router.replace('/admin/products');
+  };
+
+  const [archived, setArchived] = useState(!!product?.archived);
+  const restore = async () => {
+    if (!product) return;
+    if (await db.restoreProduct(product.id)) { setArchived(false); toast('Back in the shop.'); }
+    else toast('Could not restore the product.', 'error');
   };
 
   const preset = presetFor(form.category);
@@ -189,6 +201,13 @@ export default function ProductForm({ product, duplicateOf, onSaved }: { product
           </>
         )}
       />
+
+      {editing && archived && (
+        <div className="adm-callout" role="status">
+          <span><strong>Archived.</strong> This product is hidden from the shop but still shows in past orders.</span>
+          <button type="button" className="adm-btn adm-btn-primary adm-btn-sm" onClick={restore}>Restore to shop</button>
+        </div>
+      )}
 
       <form onSubmit={e => { e.preventDefault(); save(); }} noValidate>
         <div className="adm-grid adm-grid-main">
@@ -349,8 +368,10 @@ export default function ProductForm({ product, duplicateOf, onSaved }: { product
 
             {editing && (
               <Card title="Danger zone">
-                <p className="adm-muted adm-small" style={{ marginBottom: 12 }}>Only products that have never been ordered can be deleted.</p>
-                <button type="button" className="adm-btn adm-btn-ghost-danger" onClick={remove}>Delete product</button>
+                <p className="adm-muted adm-small" style={{ marginBottom: 12 }}>
+                  Never ordered: deleted for good, photos included. Already ordered: removed from the shop but kept in past orders, and you can restore it.
+                </p>
+                {!archived && <button type="button" className="adm-btn adm-btn-ghost-danger" onClick={remove}>Delete product</button>}
               </Card>
             )}
           </div>

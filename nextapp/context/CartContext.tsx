@@ -59,14 +59,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       await db.init();
-      dispatch({ type: 'SET_ITEMS', items: db.getCart() });
+      // Drop items whose product was removed from the shop since they were added
+      db.getCart().map((item, i) => (db.getShopProduct(item.productId) ? -1 : i)).filter(i => i >= 0).reverse()
+        .forEach(i => db.removeFromCart(i));
+      dispatch({ type: 'SET_ITEMS', items: [...db.getCart()] });
       dispatch({ type: 'SET_INITIALIZED' });
     })();
   }, []);
 
   const cartCount = state.items.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = state.items.reduce((total, item) => {
-    const p = db.getProductById(item.productId);
+    const p = db.getShopProduct(item.productId);
     return total + (p ? p.price * item.quantity : 0);
   }, 0);
 
@@ -93,7 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'CLEAR' });
   }, []);
 
-  const getProductById = useCallback((id: number) => db.getProductById(id), []);
+  const getProductById = useCallback((id: number) => db.getShopProduct(id), []);
 
   return (
     <CartContext.Provider value={{

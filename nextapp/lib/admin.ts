@@ -277,7 +277,21 @@ export async function listCustomers(): Promise<AdminCustomer[]> {
 
 /* ---------- Promo codes ---------- */
 
-export type PromoCode = { id: number; code: string; discountPercent: number; isActive: boolean; createdAt: string; uses: number };
+export type PromoCode = {
+  id: number; code: string; discountPercent: number; isActive: boolean; createdAt: string; uses: number;
+  /** When the code switches on / off by itself (ISO). null = from now / no end. endsAt is exclusive. */
+  startsAt: string | null; endsAt: string | null;
+};
+
+export type PromoState = 'active' | 'scheduled' | 'ended' | 'paused';
+
+/** What a code is doing right now, taking its dates into account */
+export function promoState(c: PromoCode, now = Date.now()): PromoState {
+  if (!c.isActive) return 'paused';
+  if (c.startsAt && now < new Date(c.startsAt).getTime()) return 'scheduled';
+  if (c.endsAt && now >= new Date(c.endsAt).getTime()) return 'ended';
+  return 'active';
+}
 
 export async function listPromoCodes(): Promise<PromoCode[]> {
   const supabase = getClient();
@@ -290,13 +304,26 @@ export async function listPromoCodes(): Promise<PromoCode[]> {
   for (const u of usesRes.data || []) uses.set(u.promo_code, (uses.get(u.promo_code) || 0) + 1);
   return (codesRes.data || []).map(c => ({
     id: c.id, code: c.code, discountPercent: c.discount_percent, isActive: c.is_active, createdAt: c.created_at, uses: uses.get(c.code) || 0,
+    startsAt: c.starts_at ?? null, endsAt: c.ends_at ?? null,
   }));
 }
 
-export async function createPromoCode(code: string, discountPercent: number): Promise<void> {
+const datesError = (msg: string) => /starts_at|ends_at/.test(msg) ? 'Run app/supabase_promo_fix.sql in Supabase first (adds promo dates).' : msg;
+
+export async function createPromoCode(code: string, discountPercent: number, dates: { startsAt: string | null; endsAt: string | null } = { startsAt: null, endsAt: null }): Promise<void> {
   const supabase = getClient();
-  const { error } = await supabase.from('promo_codes').insert({ code: code.trim().toUpperCase(), discount_percent: discountPercent, is_active: true });
-  if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'That code already exists.' : error.message);
+  const row: Record<string, unknown> = { code: code.trim().toUpperCase(), discount_percent: discountPercent, is_active: true };
+  if (dates.startsAt || dates.endsAt) Object.assign(row, { starts_at: dates.startsAt, ends_at: dates.endsAt });
+  const { error } = await supabase.from('promo_codes').insert(row);
+  if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'That code already exists.' : datesError(error.message));
+}
+
+export async function updatePromoCode(id: number, changes: { discountPercent: number; startsAt: string | null; endsAt: string | null }): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase.from('promo_codes')
+    .update({ discount_percent: changes.discountPercent, starts_at: changes.startsAt, ends_at: changes.endsAt })
+    .eq('id', id);
+  if (error) throw new Error(datesError(error.message));
 }
 
 export async function setPromoActive(id: number, isActive: boolean): Promise<void> {

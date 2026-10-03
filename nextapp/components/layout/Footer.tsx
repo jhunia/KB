@@ -42,6 +42,7 @@ export default function Footer() {
           <div>
             <h4 className="footer-col-title">Help</h4>
             <ul className="footer-links">
+              <li><Link href="/track">Track an order</Link></li>
               <li><Link href="/support">Customer support</Link></li>
               {SITE.whatsapp && (
                 <li><a href={storeWhatsAppLink()} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></li>

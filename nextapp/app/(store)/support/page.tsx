@@ -37,7 +37,7 @@ export default function SupportPage() {
         <div className="legal-section">
           <h2>Quick help</h2>
           <ul className="help-links">
-            <li><Link href="/profile"><strong>Track an order</strong><span>See the status of your orders in your account.</span></Link></li>
+            <li><Link href="/track"><strong>Track an order</strong><span>Check your order status with your order number and email or phone.</span></Link></li>
             <li><Link href="/faq#cancel"><strong>Cancel an order</strong><span>Possible until your order has shipped.</span></Link></li>
             <li><Link href="/delivery"><strong>Delivery</strong><span>How delivery and the delivery fee work.</span></Link></li>
             <li><Link href="/refund"><strong>Refunds &amp; damaged items</strong><span>Cancellations, refunds and wrong or damaged items.</span></Link></li>

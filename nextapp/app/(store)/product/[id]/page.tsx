@@ -72,7 +72,7 @@ export default function ProductPage({ params }: Props) {
     if (!productId) return;
     (async () => {
       await db.init();
-      const p = db.getProductById(productId);
+      const p = db.getShopProduct(productId); // archived (removed) products aren't for sale
       if (!p) { router.push('/category'); return; }
       setProduct(p);
       // Only pre-select when there's no real choice — picking a size for the shopper leads to wrong-size orders

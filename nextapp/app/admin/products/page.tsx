@@ -41,7 +41,7 @@ export default function ProductsPage() {
     let cancelled = false;
     db.init()
       .then(() => db._loadProducts()) // always fresh in the admin
-      .then(() => { if (!cancelled) setProducts([...db.getProducts()]); });
+      .then(() => { if (!cancelled) setProducts([...db.getAllProducts()]); });
     return () => { cancelled = true; };
   }, []);
 
@@ -51,7 +51,9 @@ export default function ProductsPage() {
     const list = products.filter(p =>
       (!term || p.name.toLowerCase().includes(term) || (p.brand || '').toLowerCase().includes(term)) &&
       (!category || p.category === category) &&
-      (!stock || (stock === 'out' ? p.inStock === false : p.inStock !== false)));
+      // Archived (removed) products only show under the "Archived" filter
+      (stock === 'archived' ? p.archived : !p.archived) &&
+      (!stock || stock === 'archived' || (stock === 'out' ? p.inStock === false : p.inStock !== false)));
     const sorters: Record<string, (a: Product, b: Product) => number> = {
       newest: (a, b) => b.id - a.id,
       name: (a, b) => a.name.localeCompare(b.name),
@@ -70,7 +72,7 @@ export default function ProductsPage() {
     for (const id of ids) if (!(await db.updateProduct(id, { inStock }))) failed++;
     setBusy(false);
     setSelected(new Set());
-    setProducts([...db.getProducts()]);
+    setProducts([...db.getAllProducts()]);
     toast(failed ? `${failed} product(s) could not be updated.` : `Marked ${ids.length} product(s) ${inStock ? 'in stock' : 'out of stock'}.`, failed ? 'error' : 'success');
   };
 
@@ -79,13 +81,45 @@ export default function ProductsPage() {
     if (ok) setStock([...selected], inStock);
   };
 
-  const outCount = products?.filter(p => p.inStock === false).length ?? 0;
+  // Never ordered → deleted for good; ordered → archived (see db.deleteProduct)
+  const removeProducts = async (ids: number[]) => {
+    const names = ids.length === 1 ? `“${products?.find(p => p.id === ids[0])?.name}”` : `${ids.length} products`;
+    const ok = await confirm({
+      title: `Delete ${names}?`,
+      message: 'Products nobody has ordered are deleted for good. Products that have been ordered are removed from the shop but kept in past orders — you can restore them from the Archived filter.',
+      confirmLabel: 'Delete', danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    let deleted = 0, archived = 0, failed = 0, lastError = '';
+    for (const id of ids) {
+      const res = await db.deleteProduct(id);
+      if (!res.success) { failed++; lastError = res.message || ''; } else if (res.archived) archived++; else deleted++;
+    }
+    setBusy(false);
+    setSelected(new Set());
+    setProducts([...db.getAllProducts()]);
+    const parts = [deleted && `${deleted} deleted`, archived && `${archived} removed from the shop (kept in past orders)`, failed && `${failed} failed${lastError ? `: ${lastError}` : ''}`].filter(Boolean);
+    toast(parts.join(' · '), failed ? 'error' : 'success');
+  };
+
+  const restore = async (id: number) => {
+    setBusy(true);
+    const ok = await db.restoreProduct(id);
+    setBusy(false);
+    setProducts([...db.getAllProducts()]);
+    toast(ok ? 'Back in the shop.' : 'Could not restore the product.', ok ? 'success' : 'error');
+  };
+
+  const live = products?.filter(p => !p.archived) ?? [];
+  const outCount = live.filter(p => p.inStock === false).length;
+  const archivedCount = (products?.length ?? 0) - live.length;
 
   return (
     <>
       <PageHeader
         title="Products"
-        subtitle={products ? `${products.length} products · ${outCount} out of stock` : ' '}
+        subtitle={products ? `${live.length} products · ${outCount} out of stock${archivedCount ? ` · ${archivedCount} archived` : ''}` : ' '}
         actions={<Link href="/admin/products/new" className="adm-btn adm-btn-primary">+ Add product</Link>}
       />
       <Card>
@@ -99,6 +133,7 @@ export default function ProductsPage() {
             <option value="">Any stock</option>
             <option value="in">In stock</option>
             <option value="out">Out of stock</option>
+            <option value="archived">Archived (removed from shop)</option>
           </select>
           <select className="adm-select" style={{ width: 'auto' }} value={sort} onChange={e => setParams({ sort: e.target.value === 'newest' ? null : e.target.value })} aria-label="Sort">
             <option value="newest">Newest first</option>
@@ -113,6 +148,7 @@ export default function ProductsPage() {
             <strong>{selected.size} selected</strong>
             <button type="button" className="adm-btn adm-btn-sm" disabled={busy} onClick={() => bulkStock(true)}>Mark in stock</button>
             <button type="button" className="adm-btn adm-btn-sm" disabled={busy} onClick={() => bulkStock(false)}>Mark out of stock</button>
+            <button type="button" className="adm-btn adm-btn-sm adm-btn-danger" disabled={busy} onClick={() => removeProducts([...selected])}>Delete</button>
             <button type="button" className="adm-btn adm-btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
           </div>
         )}
@@ -155,13 +191,19 @@ export default function ProductsPage() {
                       {fmtMoney(p.price)}
                       {p.originalPrice && <div className="adm-muted adm-small" style={{ textDecoration: 'line-through' }}>{fmtMoney(p.originalPrice)}</div>}
                     </td>
-                    <td data-label="Stock">{p.inStock === false ? <Badge tone="red">Out of stock</Badge> : <Badge tone="green">In stock</Badge>}</td>
+                    <td data-label="Stock">{p.archived ? <Badge tone="gray">Archived</Badge> : p.inStock === false ? <Badge tone="red">Out of stock</Badge> : <Badge tone="green">In stock</Badge>}</td>
                     <td data-label="" onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button type="button" className="adm-btn adm-btn-sm" disabled={busy} onClick={() => setStock([p.id], p.inStock === false)}>
-                          {p.inStock === false ? 'Restock' : 'Sold out'}
-                        </button>
-                        <a className="adm-btn adm-btn-sm" href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={`View ${p.name} in store`}>View</a>
+                        {p.archived ? (
+                          <button type="button" className="adm-btn adm-btn-sm" disabled={busy} onClick={() => restore(p.id)}>Restore</button>
+                        ) : (
+                          <>
+                            <button type="button" className="adm-btn adm-btn-sm" disabled={busy} onClick={() => setStock([p.id], p.inStock === false)}>
+                              {p.inStock === false ? 'Restock' : 'Sold out'}
+                            </button>
+                            <a className="adm-btn adm-btn-sm" href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={`View ${p.name} in store`}>View</a>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

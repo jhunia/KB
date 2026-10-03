@@ -21,7 +21,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     db.init().then(() => {
       const ids = db.getWishlist();
       setWishlistIds(ids);
-      setWishlistProducts(ids.map(id => db.getProductById(id)).filter(Boolean) as Product[]);
+      setWishlistProducts(ids.map(id => db.getShopProduct(id)).filter(Boolean) as Product[]);
     });
   }, []);
 
@@ -29,7 +29,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     db.toggleWishlist(productId);
     const newIds = db.getWishlist();
     setWishlistIds([...newIds]);
-    setWishlistProducts(newIds.map(id => db.getProductById(id)).filter(Boolean) as Product[]);
+    setWishlistProducts(newIds.map(id => db.getShopProduct(id)).filter(Boolean) as Product[]);
   }, []);
 
   const isLiked = useCallback((productId: number) => wishlistIds.includes(productId), [wishlistIds]);

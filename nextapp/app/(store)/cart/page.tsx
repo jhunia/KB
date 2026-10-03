@@ -196,7 +196,7 @@ export default function CartPage() {
     initPaystackPayment(
       { id: order.id, total, customer: customerForm },
       async ({ reference }) => {
-        await db.savePaymentRef(order.id, reference);
+        await db.confirmPayment(reference);
         if (promoCode.trim() && promoDiscount > 0) {
           await db.recordPromoUse(promoCode, customerForm.email);
         }

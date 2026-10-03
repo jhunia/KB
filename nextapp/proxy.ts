@@ -34,7 +34,10 @@ export async function proxy(req: NextRequest) {
   // ── /admin requires authentication AND admin role ─────────────────────────
   if (pathname.startsWith('/admin')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/auth', req.url));
+      // Come back to the same admin page after signing in (e.g. the order an alert opened)
+      const login = new URL('/auth', req.url);
+      login.searchParams.set('redirect', pathname + req.nextUrl.search);
+      return NextResponse.redirect(login);
     }
 
     // Verify role server-side from the profiles table.

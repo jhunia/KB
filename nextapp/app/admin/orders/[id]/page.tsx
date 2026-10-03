@@ -80,6 +80,31 @@ export default function OrderDetailPage() {
     setBusy(false);
   };
 
+  // Re-asks Paystack about an unpaid order and marks it paid if Paystack confirms the payment
+  const checkPayment = async () => {
+    if (!order) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/paystack/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.ok) {
+        setOrder({ ...order, status: body.status });
+        toast(body.already ? `Already ${statusLabel(body.status)}.` : 'Payment confirmed by Paystack — order marked as paid.');
+      } else if (res.status === 404) {
+        toast('Paystack has no payment for this order — the customer didn’t finish paying.', 'info');
+      } else if (res.status === 503) {
+        toast('Payment checks aren’t set up on the server yet (missing keys).', 'error');
+      } else {
+        toast(`Not marked as paid: ${body.reason || 'Paystack didn’t confirm the payment.'}`, 'error');
+      }
+    } catch {
+      toast('Couldn’t reach the server. Try again.', 'error');
+    }
+    setBusy(false);
+  };
+
   const remove = async () => {
     if (!order) return;
     const ok = await confirm({
@@ -124,6 +149,9 @@ export default function OrderDetailPage() {
           <>
             {order.status === 'Cancellation Requested' && (
               <button type="button" className="adm-btn adm-btn-danger" disabled={busy} onClick={() => changeStatus('Cancelled')}>Approve cancellation</button>
+            )}
+            {['pending_payment', 'payment_failed'].includes(order.status) && (
+              <button type="button" className="adm-btn" disabled={busy} onClick={checkPayment}>Check payment with Paystack</button>
             )}
             {next && <button type="button" className="adm-btn adm-btn-primary" disabled={busy} onClick={() => changeStatus(next.status)}>{next.label}</button>}
           </>

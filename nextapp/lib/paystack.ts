@@ -63,9 +63,10 @@ export function initPaystackPayment(
     email,
     amount,
     currency: 'GHS',
-    reference,
+    ref: reference, // inline v1 reads "ref" (a "reference" key is ignored and Paystack makes up its own)
     label: 'stress_d',
     metadata: {
+      order_id: order.id, // the server matches the payment to the order with this (lib/payments.ts)
       custom_fields: [
         { display_name: 'Customer Name', variable_name: 'customer_name', value: order.customer.name },
         { display_name: 'Order ID', variable_name: 'order_id', value: order.id },

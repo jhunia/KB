@@ -131,7 +131,7 @@ export default function HomePage() {
             <h1 className="hero-title">Stressed?<br />Get dressed.</h1>
             <p className="hero-desc">
               Fits that take the pressure off. Streetwear and everyday staples,
-              delivered to your door — wherever in the world that is.
+              delivered to your door wherever in the world that is.
             </p>
             <div className="hero-actions">
               <Link href="/category" className="btn btn-primary">Shop now</Link>

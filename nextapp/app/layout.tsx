@@ -7,7 +7,7 @@ import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   // Absolute base for link-preview images (set NEXT_PUBLIC_SITE_URL once you have a custom domain)
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://kb-wheat-chi.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://stressd.vercel.app'),
   // Each page sets its own title; "%s" becomes e.g. "Leather Jacket | stress_d"
   title: {
     default: 'stress_d — Clothes That Match Your Style',

@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { FeedbackProvider } from '@/components/admin/Feedback';
 import { orderViewCounts } from '@/lib/admin';
 import Logo from '@/components/ui/Logo';
+import OrderAlerts from '@/components/admin/OrderAlerts';
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: <><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></> },
@@ -83,12 +84,25 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
             </button>
             <div className="adm-topbar-spacer" />
+            <OrderAlerts />
             <span className="adm-user">{user.name || user.email}</span>
             <button type="button" className="adm-btn adm-btn-sm" onClick={handleLogout}>Log out</button>
           </header>
           <main className="adm-content">
             <Suspense fallback={<div className="adm-loading-inline">Loading…</div>}>{children}</Suspense>
           </main>
+          {/* Phone: app-style tab bar (the sidebar drawer still holds everything) */}
+          <nav className="adm-tabbar" aria-label="Admin sections">
+            {NAV.map(item => (
+              <Link key={item.href} href={item.href} className={isActive(item.href) ? 'active' : ''} aria-current={isActive(item.href) ? 'page' : undefined}>
+                <span className="adm-tabbar-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{item.icon}</svg>
+                  {item.href === '/admin/orders' && needsAction > 0 && <span className="adm-tabbar-count">{needsAction}</span>}
+                </span>
+                {item.label === 'Dashboard' ? 'Home' : item.label === 'Promotions' ? 'Promos' : item.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </div>
     </FeedbackProvider>

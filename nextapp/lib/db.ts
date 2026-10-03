@@ -367,15 +367,25 @@ class KBDatabase {
     return { ...orderData, id: orderId, date: new Date().toISOString(), status, customer: customerInfo };
   }
 
-  async savePaymentRef(orderId: string, ref: string): Promise<boolean> {
-    const supabase = getClient();
-    // Mark order as paid and save the payment reference atomically
-    const { error } = await supabase
-      .from('orders')
-      .update({ payment_ref: ref, status: 'paid' })
-      .eq('id', orderId);
-    if (error) console.error('[DB] Payment ref save error:', error);
-    return !error;
+  /**
+   * After the Paystack pop-up reports success, ask the server to confirm it with Paystack
+   * and mark the order paid (app/api/paystack/verify). The browser can't mark orders paid itself.
+   * If this fails (e.g. bad signal), the Paystack webhook still marks the order paid.
+   */
+  async confirmPayment(reference: string): Promise<boolean> {
+    try {
+      const res = await fetch('/api/paystack/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) console.warn('[DB] Payment not confirmed yet:', body.reason || res.status);
+      return res.ok;
+    } catch (err) {
+      console.warn('[DB] Payment confirmation request failed:', err);
+      return false;
+    }
   }
 
   async deleteOrder(orderId: string): Promise<boolean> {
@@ -406,13 +416,11 @@ class KBDatabase {
   }
 
   async requestCancellation(orderId: string): Promise<boolean> {
-    const supabase = getClient();
-    const { data } = await supabase.from('orders').select('status').eq('id', orderId).single();
-    if (data && ['pending_payment', 'Processing', 'paid'].includes(data.status)) {
-      await supabase.from('orders').update({ status: 'Cancellation Requested' }).eq('id', orderId);
-      return true;
-    }
-    return false;
+    // Database function checks it's the customer's own order and still cancellable
+    // (customers can't edit orders directly — app/supabase_payment_patch.sql)
+    const { data, error } = await getClient().rpc('request_order_cancellation', { p_order_id: orderId });
+    if (error) console.error('[DB] Cancellation request error:', error);
+    return data === true;
   }
 
   async validatePromoCode(code: string): Promise<{ valid: boolean; discount: number; reason?: string }> {

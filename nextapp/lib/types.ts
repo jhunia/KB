@@ -38,6 +38,8 @@ export interface User {
   name: string;
   email: string;
   phone: string | null;
+  /** Saved delivery address, pre-filled at checkout */
+  address?: string | null;
   role: 'customer' | 'admin';
 }
 

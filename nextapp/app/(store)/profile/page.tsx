@@ -6,7 +6,8 @@ import { db } from '@/lib/db';
 import { useAuth } from '@/context/AuthContext';
 import type { Order } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
-import { CANCELLABLE } from '@/lib/orderStatus';
+import { CANCELLABLE, UNPAID } from '@/lib/orderStatus';
+import AccountDetails from '@/components/account/AccountDetails';
 
 export default function ProfilePage() {
   return (
@@ -24,6 +25,8 @@ function ProfileInner() {
   const router = useRouter();
   const params = useSearchParams();
   const justPaid = params.get('order'); // set by checkout after a successful payment
+  const tab = params.get('tab') === 'details' ? 'details' : 'orders';
+  const switchTab = (t: 'orders' | 'details') => router.replace(t === 'details' ? '/profile?tab=details' : '/profile', { scroll: false });
 
   useEffect(() => {
     if (!initialized) return;
@@ -69,6 +72,7 @@ function ProfileInner() {
             <h1>{user.name || 'stress_d member'}</h1>
             <p>{user.email}</p>
             {user.phone && <p>{user.phone}</p>}
+            {!user.phone && <button type="button" className="profile-add-phone" onClick={() => switchTab('details')}>+ Add your phone number</button>}
           </div>
           <button className="btn btn-outline btn-sm" style={{ marginLeft: 'auto' }} onClick={handleLogout}>Log Out</button>
         </div>
@@ -80,14 +84,30 @@ function ProfileInner() {
           </div>
         )}
 
-        {justPaid && orders?.some(o => o.id === justPaid) && (
-          <div className="profile-thanks" role="status">
-            <strong>🎉 Thank you — your payment was received.</strong>
-            <span>We&apos;ll call you to arrange delivery. You can follow your order below.</span>
-          </div>
+        {justPaid && orders?.some(o => o.id === justPaid) && tab === 'orders' && (
+          UNPAID.includes(orders.find(o => o.id === justPaid)!.status) ? (
+            <div className="profile-thanks pending" role="status">
+              <strong>Thank you — we&apos;re confirming your payment with Paystack.</strong>
+              <span>This usually takes a few seconds. Refresh the page if your order still says “Awaiting payment”.</span>
+            </div>
+          ) : (
+            <div className="profile-thanks" role="status">
+              <strong>🎉 Thank you — your payment was received.</strong>
+              <span>We&apos;ll call you to arrange delivery. You can follow your order below.</span>
+            </div>
+          )
         )}
 
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>Your Orders</h2>
+        <div className="account-tabs" role="tablist" aria-label="My account">
+          <button type="button" role="tab" aria-selected={tab === 'orders'} className={tab === 'orders' ? 'active' : ''} onClick={() => switchTab('orders')}>
+            Orders{orders?.length ? ` (${orders.length})` : ''}
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'details'} className={tab === 'details' ? 'active' : ''} onClick={() => switchTab('details')}>
+            Account details
+          </button>
+        </div>
+
+        {tab === 'details' ? <AccountDetails /> : <>
 
         {orders === null ? (
           <p style={{ color: 'var(--gray-600)' }}>Loading orders…</p>
@@ -123,6 +143,7 @@ function ProfileInner() {
             ))}
           </div>
         )}
+        </>}
       </div>
     </main>
   );

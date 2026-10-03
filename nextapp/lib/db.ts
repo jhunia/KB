@@ -7,6 +7,17 @@ import { compressImage, dataUrlToBlob, extensionFor } from './imageUpload';
 
 const PRODUCT_IMAGE_BUCKET = 'product-images';
 
+/**
+ * SD- + 8 random characters, without look-alikes (0/O, 1/I/L) so it's easy to read out on the phone.
+ * 8 characters (~850 billion combinations) keeps order numbers impossible to guess by trying them
+ * on the Track order page.
+ */
+function newOrderNumber(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return 'SD-' + Array.from(bytes, b => chars[b % chars.length]).join('');
+}
+
 class KBDatabase {
   private _productsCache: Product[] | null = null;
   private _cartCache: CartItem[] = [];
@@ -92,6 +103,7 @@ class KBDatabase {
           name: profile.name,
           email: profile.email,
           phone: profile.phone,
+          address: profile.address ?? null,
           role: profile.role,
         };
       }
@@ -178,7 +190,7 @@ class KBDatabase {
       await supabase.auth.signOut();
       return { success: false, message: 'Your account profile could not be found. Please contact support.' };
     }
-    this._currentUser = { id: profile.id, name: profile.name, email: profile.email, phone: profile.phone, role: profile.role };
+    this._currentUser = { id: profile.id, name: profile.name, email: profile.email, phone: profile.phone, address: profile.address ?? null, role: profile.role };
     await this._mergeGuestCart();
     await this._loadWishlist();
     return { success: true, user: this._currentUser };
@@ -242,6 +254,38 @@ class KBDatabase {
     const supabase = getClient();
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) return { success: false, message: error.message };
+    return { success: true };
+  }
+
+  // ---- ACCOUNT DETAILS (My Account) ----
+
+  /** Name, phone and saved delivery address. The email can't be changed once the account exists. */
+  async updateProfile(changes: { name: string; phone: string; address: string }): Promise<{ success: boolean; message?: string }> {
+    if (!this._currentUser) return { success: false, message: 'Please log in again.' };
+    const row = { name: changes.name.trim(), phone: changes.phone.trim() || null, address: changes.address.trim() || null };
+    let { error } = await getClient().from('profiles').update(row).eq('id', this._currentUser.id);
+    // Address column not added yet (app/supabase_profile_patch.sql) — save the rest
+    if (error && /address/.test(error.message)) {
+      ({ error } = await getClient().from('profiles').update({ name: row.name, phone: row.phone }).eq('id', this._currentUser.id));
+      if (!error) {
+        this._currentUser = { ...this._currentUser, name: row.name, phone: row.phone };
+        return { success: true, message: 'Saved — except the address (the store hasn’t enabled saved addresses yet).' };
+      }
+    }
+    if (error) return { success: false, message: error.message };
+    this._currentUser = { ...this._currentUser, ...row };
+    return { success: true };
+  }
+
+  /** Checks the current password first, so a borrowed, signed-in phone can't lock the owner out */
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
+    if (!this._currentUser) return { success: false, message: 'Please log in again.' };
+    const supabase = getClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: user?.email || this._currentUser.email, password: currentPassword });
+    if (authError) return { success: false, message: 'Your current password is incorrect.' };
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { success: false, message: /different|same/i.test(error.message) ? 'Choose a password different from your current one.' : error.message };
     return { success: true };
   }
 
@@ -343,21 +387,28 @@ class KBDatabase {
     items: Array<{ productId: number; size: string; color: string; quantity: number }>;
   }, status = 'pending_payment'): Promise<Order | null> {
     const supabase = getClient();
-    const orderId = 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const customerInfo = {
       name: orderData.customer.name,
       email: orderData.customer.email,
       phone: orderData.customer.phone,
       address: orderData.customer.address || '',
     };
-    const { error } = await supabase.from('orders').insert({
-      id: orderId, user_id: this._currentUser?.id || null, status,
-      subtotal: orderData.subtotal, discount_amount: orderData.discount,
-      delivery_fee: orderData.deliveryFee, total: orderData.total,
-      payment_method: orderData.paymentMethod || 'paystack',
-      customer_info: customerInfo,
-      ...(orderData.promoCode ? { promo_code: orderData.promoCode } : {}),
-    });
+    // Short, easy-to-read order numbers (e.g. SD-7K3Q9M2X); on the very rare clash
+    // with an existing order, a new number is drawn.
+    let orderId = '';
+    let error: { code?: string; message: string } | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      orderId = newOrderNumber();
+      ({ error } = await supabase.from('orders').insert({
+        id: orderId, user_id: this._currentUser?.id || null, status,
+        subtotal: orderData.subtotal, discount_amount: orderData.discount,
+        delivery_fee: orderData.deliveryFee, total: orderData.total,
+        payment_method: orderData.paymentMethod || 'paystack',
+        customer_info: customerInfo,
+        ...(orderData.promoCode ? { promo_code: orderData.promoCode } : {}),
+      }));
+      if (error?.code !== '23505') break; // 23505 = that number is already taken
+    }
     if (error) { console.error('[DB] Order insert error:', error); return null; }
     const items = orderData.items.map(item => ({
       order_id: orderId, product_id: item.productId, size: item.size, color: item.color, quantity: item.quantity,

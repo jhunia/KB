@@ -168,6 +168,7 @@ function AuthPageInner() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const email = fd.get('email') as string;
+    if (String(fd.get('password') || '').length < 8) { showAlert('Your password needs at least 8 characters.'); return; }
     setLoading(true);
     showAlert('Creating account…', 'success');
     const res = await signup(
@@ -216,7 +217,7 @@ function AuthPageInner() {
     const newPass = fd.get('newPassword') as string;
     const confirmPass = fd.get('confirmPassword') as string;
     if (newPass !== confirmPass) { showAlert('Passwords do not match.'); return; }
-    if (newPass.length < 6) { showAlert('Password must be at least 6 characters.'); return; }
+    if (newPass.length < 8) { showAlert('Password must be at least 8 characters.'); return; }
     const btn = (e.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement);
     setLoading(true);
     showAlert('Updating password…', 'success');

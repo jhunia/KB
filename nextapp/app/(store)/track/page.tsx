@@ -12,14 +12,17 @@ import type { Order } from '@/lib/types';
 /* Order tracking for guests: order number + the email or phone number used at checkout. Orders placed as a guest on
    this device are listed automatically. Signed-in customers see everything in My Account. */
 
-async function lookup(orders: { id: string; contact: string }[]): Promise<Order[]> {
+/** All orders for the given proofs (order number + email/phone); "verified" = the order numbers that matched */
+async function lookup(orders: { id: string; contact: string }[]): Promise<{ orders: Order[]; verified: string[] }> {
+  if (!orders.length) return { orders: [], verified: [] };
   const res = await fetch('/api/orders/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ orders }),
   });
   if (!res.ok) throw new Error('lookup failed');
-  return (await res.json()).orders as Order[];
+  const body = await res.json();
+  return { orders: (body.orders || []) as Order[], verified: (body.verified || []) as string[] };
 }
 
 export default function TrackPage() {
@@ -43,8 +46,8 @@ function TrackInner() {
   // Orders remembered on this device (product details come from the shared product list)
   useEffect(() => {
     const saved = getGuestOrders();
-    Promise.all([db.init(), saved.length ? lookup(saved) : Promise.resolve([])])
-      .then(([, found]) => {
+    Promise.all([db.init(), lookup(saved)])
+      .then(([, { orders: found }]) => {
         setOrders(found);
         // Opened from the order confirmation: the order is already listed, so show it instead of the form
         if (highlight && found.some(o => o.id === highlight)) {
@@ -60,15 +63,20 @@ function TrackInner() {
     setError('');
     setSearching(true);
     try {
-      const [found] = await lookup([{ id: orderId, contact }]);
-      if (!found) {
+      const { orders: found, verified } = await lookup([{ id: orderId, contact }]);
+      if (!verified.length) {
         setError('We couldn’t find an order with those details. Check the order number, and use the same email or phone number you gave at checkout.');
         return;
       }
-      rememberGuestOrder({ id: found.id, contact: contact.trim().toLowerCase() });
-      setOrders(prev => [found, ...(prev || []).filter(o => o.id !== found.id)]);
+      // Remember the proof on this device, so next time all their orders load by themselves
+      rememberGuestOrder({ id: verified[0], contact: contact.trim().toLowerCase() });
+      setOrders(prev => {
+        const ids = new Set(found.map(o => o.id));
+        return [...found, ...(prev || []).filter(o => !ids.has(o.id))].sort((a, b) => b.date.localeCompare(a.date));
+      });
       setOrderId('');
-      document.getElementById(`order-${found.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setContact('');
+      requestAnimationFrame(() => document.getElementById(`order-${verified[0]}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     } catch {
       setError('Something went wrong. Please try again in a moment.');
     } finally {
@@ -88,13 +96,13 @@ function TrackInner() {
         <p style={{ color: 'var(--gray-600)', marginBottom: 24, maxWidth: 560 }}>
           {user
             ? <>You&apos;re signed in — all your orders are in <Link href="/profile" className="legal-link">My Account</Link>. You can still look up a guest order below.</>
-            : <>Enter the order number from your confirmation, plus the email or phone number you used at checkout.</>}
+            : <>Enter any one of your order numbers plus the email or phone number you used at checkout. We&apos;ll show all your orders placed with it.</>}
         </p>
 
         <form className="track-form" onSubmit={handleSubmit}>
           <div className="track-field">
             <label htmlFor="track-order">Order number</label>
-            <input id="track-order" value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="e.g. ORD-1790000000000-123" autoComplete="off" required />
+            <input id="track-order" value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="e.g. SD-7K3Q9M2X" autoComplete="off" required />
           </div>
           <div className="track-field">
             <label htmlFor="track-contact">Email or phone number</label>
@@ -109,7 +117,7 @@ function TrackInner() {
         ) : orders.length > 0 && (
           <>
             <div className="track-list-head">
-              <h2>Your orders</h2>
+              <h2>Your orders ({orders.length})</h2>
               <button type="button" className="track-forget" onClick={clearDevice}>Forget orders on this device</button>
             </div>
             <div className="orders-list">

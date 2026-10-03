@@ -16,6 +16,8 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ success: boolean; message?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
+  /** My Account: name, phone, saved address */
+  updateProfile: (changes: { name: string; phone: string; address: string }) => Promise<{ success: boolean; message?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -56,9 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestPasswordReset = useCallback((email: string) => db.requestPasswordReset(email), []);
   const updatePassword = useCallback((newPassword: string) => db.updatePassword(newPassword), []);
   const finishPasswordRecovery = useCallback(() => { clearPasswordRecovery(); setPasswordRecovery(false); }, []);
+  const updateProfile = useCallback(async (changes: { name: string; phone: string; address: string }) => {
+    const res = await db.updateProfile(changes);
+    if (res.success) setUser(db.getCurrentUser());
+    return res;
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, initialized, passwordRecovery, finishPasswordRecovery, login, signup, logout, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, initialized, passwordRecovery, finishPasswordRecovery, login, signup, logout, requestPasswordReset, updatePassword, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -156,7 +156,7 @@ export default function CartPage() {
   useEffect(() => {
     db.init().then(() => {
       const user = db.getCurrentUser();
-      if (user) setCustomerForm(f => ({ ...f, name: user.name || '', email: user.email || '', phone: user.phone || '' }));
+      if (user) setCustomerForm(f => ({ ...f, name: user.name || '', email: user.email || '', phone: user.phone || '', address: user.address || '' }));
     });
     loadPaystackScript();
   }, []);

@@ -32,7 +32,7 @@ export default function SupportPage() {
             </a>
           )}
         </div>
-        <p className="help-note">Include your order number (it starts with “ORD-”) so we can help you faster.</p>
+        <p className="help-note">Include your order number (it starts with “SD-”) so we can help you faster.</p>
 
         <div className="legal-section">
           <h2>Quick help</h2>

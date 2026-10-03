@@ -44,7 +44,7 @@ export default function DeliveryPage() {
           <p>
             If you have an account, open <Link href="/profile" className="legal-link">My Account</Link> to see each order move from
             “Order received” to “Being prepared”, “On its way” and “Delivered”. If you checked out as a guest, keep your order
-            number (it starts with “ORD-”) and <Link href="/support" className="legal-link">contact us</Link> for an update.
+            number (it starts with “SD-”) and <Link href="/support" className="legal-link">contact us</Link> for an update.
           </p>
         </div>
 

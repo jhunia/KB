@@ -112,16 +112,16 @@ export async function markOrderPaid(tx: PaystackTx): Promise<MarkResult> {
   if (order.promo_code) {
     const code = String(order.promo_code).toUpperCase();
     if (!order.user_id) return { ok: false, reason: `promo code ${code} used without an account` };
-    const [{ data: promo }, { data: profile }] = await Promise.all([
+    const [{ data: promo }, { data: account }] = await Promise.all([
       db.from('promo_codes').select('discount_percent, is_active, starts_at, ends_at').eq('code', code).maybeSingle(),
-      db.from('profiles').select('email').eq('id', order.user_id).maybeSingle(),
+      db.auth.admin.getUserById(order.user_id), // the sign-in email (can't be edited without confirming)
     ]);
     // Dates are checked against when the order was placed, so paying a minute after a promo ends still counts
     const placed = new Date(order.created_at).getTime();
     const inWindow = promo && (!promo.starts_at || placed >= new Date(promo.starts_at).getTime())
       && (!promo.ends_at || placed < new Date(promo.ends_at).getTime());
     if (!promo?.is_active || !inWindow) return { ok: false, reason: `promo code ${code} was not valid when the order was placed` };
-    promoEmail = normalizeEmail(String(profile?.email || ''));
+    promoEmail = normalizeEmail(String(account?.user?.email || ''));
     const { count } = await db.from('promo_uses').select('id', { count: 'exact', head: true })
       .eq('promo_code', code).eq('normalized_email', promoEmail).or(`order_id.is.null,order_id.neq.${order.id}`);
     if (count) return { ok: false, reason: `promo code ${code} was already used by this customer` };
@@ -138,6 +138,12 @@ export async function markOrderPaid(tx: PaystackTx): Promise<MarkResult> {
     .eq('id', order.id)
     .in('status', ['pending_payment', 'payment_failed']); // don't overwrite a concurrent update
   if (error) return { ok: false, reason: error.message };
+
+  // Order history shows what each item cost — store the real prices, not the browser's numbers
+  await Promise.all(Array.from(new Set(items.map(i => i.product_id))).map(pid =>
+    priceOf.has(pid)
+      ? db.from('order_items').update({ unit_price: priceOf.get(pid) }).eq('order_id', order.id).eq('product_id', pid).then(() => {})
+      : Promise.resolve()));
 
   // The code is now used up for this customer
   if (order.promo_code && promoEmail) {

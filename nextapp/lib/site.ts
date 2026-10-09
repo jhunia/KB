@@ -8,8 +8,8 @@ export const SITE = {
   name: 'stress_d',
   established: 2026,
 
-  // Customer contact. The email matches the one in the Terms page — make sure this mailbox exists.
-  supportEmail: 'support@kbent.com',
+  // Customer contact — used on the Support, Terms, Privacy and Refund pages.
+  supportEmail: 'junioaristotle@gmail.com',
   phone: '+233 55 287 4892',    // shown with a "Call us" button
   whatsapp: '+233 55 287 4892', // shown with a "Chat on WhatsApp" button (footer, support, order confirmation)
   hours: '',          // e.g. 'Mon–Sat, 9am–6pm'

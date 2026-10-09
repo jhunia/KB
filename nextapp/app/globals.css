@@ -146,19 +146,14 @@ section { padding: 64px 0; }
 .brands-bar { background-color: var(--black); padding: 28px 0; overflow: hidden; white-space: nowrap; }
 .brands-bar-inner { display: inline-flex; align-items: center; white-space: nowrap; }
 .track-1 { animation: scrollLeft 30s linear infinite; padding-right: 48px; }
-.track-2 { display: none; animation: scrollRight 30s linear infinite; padding-right: 48px; margin-top: 16px; }
 
-/* Logo image items in the scrolling bar */
-.brand-logo-item { display: inline-flex; align-items: center; justify-content: center; margin: 0 36px; vertical-align: middle; height: 44px; }
-/* img starts opacity:0 (set inline); revealed via onLoad JS */
-.brand-bar-logo-img { height: 36px; max-width: 110px; width: auto; object-fit: contain; filter: brightness(0) invert(1); }
-
-/* Text fallback — shown by default, hidden by JS when logo loads */
-.brand-bar-logo-text,
-.brand-logo { font-family: var(--font-display); color: var(--white); font-size: clamp(16px,2.5vw,26px); font-weight: 400; letter-spacing: 2px; white-space: nowrap; opacity: 0.8; }
+/* Brand names in the scrolling bar (components/home/BrandsBar.tsx) */
+.brand-bar-name { display: inline-block; margin: 0 36px; font-family: var(--font-display); color: var(--white); font-size: clamp(18px, 2.6vw, 28px); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; opacity: 0.8; transition: opacity var(--transition-fast); }
+.brand-bar-name:hover, .brand-bar-name:focus-visible { opacity: 1; }
+.brands-bar:hover .brands-bar-inner, .brands-bar:focus-within .brands-bar-inner { animation-play-state: paused; }
+.brands-bar-placeholder { height: clamp(26px, 3.6vw, 40px); }
 
 @keyframes scrollLeft { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-@keyframes scrollRight { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
 
 /* ============================================ PRODUCT CARDS */
 .products-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 24px; }
@@ -503,7 +498,6 @@ section { padding: 64px 0; }
   .nav-links.mobile-open { transform: translateX(0); }
   .header-search { display: none; }
   .mobile-menu-btn { display: flex; }
-  .track-2.mobile-only { display: inline-block; }
   .hero-inner { flex-direction: column; min-height: auto; }
   .hero-content { padding: 40px 16px; text-align: center; }
   .hero-desc { margin-left: auto; margin-right: auto; }

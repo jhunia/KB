@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SITE } from '@/lib/site';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Refund Policy' };
@@ -28,7 +29,7 @@ export default function RefundPage() {
         </div>
         <div className="legal-section">
           <h2>Damaged or wrong items</h2>
-          <p>If you receive a damaged or incorrect item, please contact us within 48 hours of delivery at returns@kbent.com with photos, and we will make it right at no additional cost.</p>
+          <p>If you receive a damaged or incorrect item, please contact us within 48 hours of delivery at <a href={`mailto:${SITE.supportEmail}`} className="legal-link">{SITE.supportEmail}</a> with photos, and we will make it right at no additional cost.</p>
         </div>
         <div className="legal-section">
           <h2>How refunds are paid</h2>

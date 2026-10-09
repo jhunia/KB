@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SITE } from '@/lib/site';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Terms & Conditions' };
@@ -36,7 +37,7 @@ export default function TermsPage() {
         </div>
         <div className="legal-section">
           <h2>7. Contact</h2>
-          <p>For questions about these terms, contact us at support@kbent.com.</p>
+          <p>For questions about these terms, contact us at <a href={`mailto:${SITE.supportEmail}`} className="legal-link">{SITE.supportEmail}</a>.</p>
         </div>
       </div>
     </main>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SITE } from '@/lib/site';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Privacy Policy' };
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
         </div>
         <div className="legal-section">
           <h2>6. Your Rights</h2>
-          <p>You have the right to access, correct, or delete your personal data at any time. Contact us at privacy@kbent.com to exercise these rights.</p>
+          <p>You have the right to access, correct, or delete your personal data at any time. Contact us at <a href={`mailto:${SITE.supportEmail}`} className="legal-link">{SITE.supportEmail}</a> to exercise these rights.</p>
         </div>
       </div>
     </main>

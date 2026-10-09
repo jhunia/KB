@@ -7,7 +7,7 @@ import ProductCardSkeleton from '@/components/ui/ProductCardSkeleton';
 import type { Product } from '@/lib/types';
 import StyleShowcase from '@/components/home/StyleShowcase';
 import CustomerReviews from '@/components/home/CustomerReviews';
-import { getBrandLogo } from '@/lib/brandLogos';
+import BrandsBar from '@/components/home/BrandsBar';
 import Image from 'next/image';
 import { getPromo, isPromoLive, type PromoSettings } from '@/lib/promo';
 
@@ -151,59 +151,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* BRANDS BAR */}
-      {(() => {
-        const track1 = ['Versace', 'Zara', 'Gucci', 'Prada', 'Calvin Klein', 'Dior', 'Nike', 'Chanel', 'Balenciaga', 'Adidas'];
-        const track2 = ['Puma', 'Lacoste', 'Hugo Boss', 'Under Armour', 'H&M', 'Clarks', 'Zara', 'Nike', 'Gucci', 'Prada'];
-
-        const renderLogo = (b: string, i: number) => {
-          const src = getBrandLogo(b, 80);
-          return (
-            <span key={i} className="brand-logo-item">
-              {src && (
-                // Third-party logo CDN with an onError text fallback; next/image would proxy it through the optimiser.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={src}
-                  alt=""
-                  className="brand-bar-logo-img"
-                  // Start invisible — only reveal on successful load
-                  style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
-                  onLoad={(e) => {
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.style.opacity = '0.85';
-                    // Hide the text fallback sitting beside it
-                    const txt = img.nextElementSibling as HTMLElement;
-                    if (txt) txt.style.display = 'none';
-                  }}
-                  onError={(e) => {
-                    // Image failed — hide it completely, show the text fallback
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                    const txt = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (txt) txt.style.display = 'inline';
-                  }}
-                />
-              )}
-              {/* Text shown by default; hidden by onLoad if the image succeeds */}
-              <span className="brand-bar-logo-text">{b.toUpperCase()}</span>
-            </span>
-          );
-        };
-
-        const t1 = [...track1, ...track1];
-        const t2 = [...track2, ...track2];
-        return (
-          <div className="brands-bar">
-            <div className="brands-bar-inner track-1">
-              {t1.map(renderLogo)}
-            </div>
-            <div className="brands-bar-inner track-2 mobile-only">
-              {t2.map(renderLogo)}
-            </div>
-          </div>
-        );
-      })()}
-
+      {/* BRANDS WE STOCK */}
+      <BrandsBar products={allProducts} loading={!loaded} />
 
       {/* NEW ARRIVALS */}
       <CarouselSection title="NEW ARRIVALS" products={newArrivals} viewAllHref="/category?filter=new" loading={!loaded} />
